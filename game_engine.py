@@ -145,15 +145,14 @@ def play_back_move_log(move_log):
     for move in move_log:
         game.make_move(move)
         game.print_board()
-        # game.plot_board()
 
 def plot_back_move_log(move_log, directory="game_histories/example"):
     game=OthelloGame()
     if not os.path.exists(directory):
         os.mkdir(directory)
     for n, move in enumerate(move_log):
-        game.make_move(move)
         plt.close()
+        game.make_move(move)
         game.plot_board()
         plt.savefig(f"{directory}/turn{len(game.turns_history)}")
 
