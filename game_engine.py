@@ -1,5 +1,7 @@
 import numpy as np
-from random import choice
+from random import choice, seed 
+import matplotlib.pyplot as plt
+import os
 
 class OthelloGame:
 
@@ -11,6 +13,7 @@ class OthelloGame:
         self.board[4,3]=1
         self.board[4,4]=-1
         self.turns_history=[]
+        self.just_flipped=[]
         self.active_player=1
 
     def make_move(self, coordinates):
@@ -24,6 +27,7 @@ class OthelloGame:
         if pieces_to_flip:
             for location in pieces_to_flip:
                 self.board[tuple(location)]*=-1
+            self.just_flipped=pieces_to_flip
             self.board[coordinates]=self.active_player
             self.turns_history.append(coordinates)
             self.active_player*=-1
@@ -63,12 +67,14 @@ class OthelloGame:
                     enemy_pieces_in_this_direction.append(next_coordinates)
                 elif self.board[tuple(next_coordinates)]*self.active_player==1:
                     pieces_to_flip.extend(enemy_pieces_in_this_direction)
+                    break
                 elif self.board[tuple(next_coordinates)]==0:
                     break
                 next_coordinates=next_coordinates+direction
+        return pieces_to_flip
 
     def is_legal_move(self, coordinates):
-        return bool(self.pieces_to_flip_with_move_at(coordinates))
+        return self.pieces_to_flip_with_move_at(coordinates)
 
 
     def list_legal_moves(self):
@@ -89,6 +95,39 @@ class OthelloGame:
         to_print="\n".join(to_print_lines)
         print(to_print)
 
+    def plot_board(self, directory="game_histories/example"):
+        black_pieces_locations=[]
+        white_pieces_locations=[]
+        for x in range(self.board_size):
+            for y in range(self.board_size):
+                if self.board[(x,y)]==1:
+                    black_pieces_locations.append((x,y))
+                elif self.board[(x,y)]==-1:
+                    white_pieces_locations.append((x,y))
+        
+        fig, ax = plt.subplots()
+        ax.grid()
+        ax.set_axisbelow(True)
+        ax.set_aspect(1)
+        ax.set_axisbelow(True)
+
+        marker_size=1000
+
+        plt.scatter(x=np.array(black_pieces_locations)[:,0],y=np.array(black_pieces_locations)[:,1], c="black", s=marker_size, linewidths=1.5, edgecolors="black")
+        plt.scatter(x=np.array(white_pieces_locations)[:,0],y=np.array(white_pieces_locations)[:,1], c="white", s=marker_size, linewidths=1.5, edgecolors="black")
+        
+        plt.scatter(x=np.array(self.turns_history)[-1,0],y=np.array(self.turns_history)[-1,1], marker="s", c="red", s=100)
+        plt.scatter(x=np.array(self.just_flipped)[:,0],y=np.array(self.just_flipped)[:,1], c="orange", s=100)
+
+
+        plt.gca().invert_yaxis()
+
+        plt.yticks(range(self.board_size),labels=range(1, self.board_size+1))
+        plt.xticks(range(self.board_size), labels=["A", "B", "C", "D", "E", "F", "G", "H"])
+        plt.title(f"Turn {len(self.turns_history)}")
+
+
+
 def generate_random_game():
     '''
     returns a list of game moves chosen at random from the legal moves
@@ -106,6 +145,19 @@ def play_back_move_log(move_log):
     for move in move_log:
         game.make_move(move)
         game.print_board()
+        # game.plot_board()
 
+def plot_back_move_log(move_log, directory="game_histories/example"):
+    game=OthelloGame()
+    if not os.path.exists(directory):
+        os.mkdir(directory)
+    for n, move in enumerate(move_log):
+        game.make_move(move)
+        plt.close()
+        game.plot_board()
+        plt.savefig(f"{directory}/turn{len(game.turns_history)}")
+
+seed(0)
 random_move_log=generate_random_game()
-play_back_move_log(random_move_log)
+# play_back_move_log(random_move_log)
+plot_back_move_log(random_move_log)
