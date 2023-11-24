@@ -1,0 +1,26 @@
+Overall plan:
+
+1. Take an Othello-GPT
+2. Train these linear probes 
+3. Train sparse autoencoders
+4. Check if sparse autoencoders find the linear probes (e.g., for each direction of linear probe, compute the MCS to the dictionary features, >.8 is a W)
+
+Motivating questions:
+Do sparse autoencoders work on non-text transformers?
+Do they learn an a-priori interesting and interpretable set of features (i.e. the board state)?
+
+
+
+Questions:
+Othello-GPT architecture? (internal dim=512, layers=8, MLP+attention?,  
+Your linear probes were found with labelled data?
+Other interesting directions?
+Wanna guess if it works?
+
+
+Othello experiment steps:
+
+Othello Engine
+Train OthelloGPT
+Run OthelloGPT
+Find linear features in OthelloGPT (replication)
