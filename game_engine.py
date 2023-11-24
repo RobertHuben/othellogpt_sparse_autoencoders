@@ -151,12 +151,48 @@ def plot_back_move_log(move_log, directory="game_histories/example"):
     if not os.path.exists(directory):
         os.mkdir(directory)
     for n, move in enumerate(move_log):
-        plt.close()
         game.make_move(move)
         game.plot_board()
         plt.savefig(f"{directory}/turn{len(game.turns_history)}")
+        plt.close()
+
+def coordinates_to_string(coord_as_tuple):
+    first_coord="ABCDEFGH"[coord_as_tuple[0]]
+    second_coord=coord_as_tuple[1]+1
+    return f"{first_coord}{second_coord}"
+
+def move_log_to_string(move_log_list,insert_terminal_XX=False):
+    moves=[coordinates_to_string(move) for move in move_log_list]
+    if insert_terminal_XX:
+        moves.append("XX")
+    return " ".join(moves)
+
+def string_to_coordinates(coord_as_string):
+    first_coord={"A":0,"B":1,"C":2,"D":3,"E":4,"F":5,"G":6,"H":7}[coord_as_string[0]]
+    second_coord=int(coord_as_string[1])-1
+    return (first_coord, second_coord)
+
+def string_to_move_log(move_log_string):
+    move_log_split=move_log_string.split(" ")
+    if move_log_split[-1]=="XX":
+        move_log_split.pop()
+    return [string_to_coordinates(move) for move in move_log_split]
+
+
+def test_conversion():
+    random_move_log=generate_random_game()
+    y=move_log_to_string(random_move_log)
+    z=string_to_move_log(y)
+    if np.all(np.array(random_move_log)==np.array(z)):
+        print("Yay!")
+    else:
+        print("NOOOOOOOOO!")
+
+# for _ in range(100):
+#     test_conversion()
 
 seed(0)
 random_move_log=generate_random_game()
-# play_back_move_log(random_move_log)
+print(random_move_log)
+print(move_log_to_string(random_move_log))
 plot_back_move_log(random_move_log)
