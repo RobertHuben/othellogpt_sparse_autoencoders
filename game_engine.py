@@ -191,8 +191,9 @@ def test_conversion():
 # for _ in range(100):
 #     test_conversion()
 
-seed(0)
-random_move_log=generate_random_game()
-print(random_move_log)
-print(move_log_to_string(random_move_log))
-plot_back_move_log(random_move_log)
+if __name__=="__main__":
+    seed(0)
+    random_move_log=generate_random_game()
+    print(random_move_log)
+    print(move_log_to_string(random_move_log))
+    plot_back_move_log(random_move_log)
