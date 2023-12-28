@@ -7,22 +7,22 @@ class MyAttentionHead(torch.nn.Module):
         super().__init__()
         self.d_model=d_model
         self.d_head=d_head
-        scaling_factor=1/math.sqrt(d_model)
-        self.Q = torch.nn.Parameter(scaling_factor*torch.randn((d_model, d_head)))
-        self.K = torch.nn.Parameter(scaling_factor*torch.randn((d_model, d_head)))
-        self.O = torch.nn.Parameter(scaling_factor*torch.randn((d_model, d_head)))
-        self.V = torch.nn.Parameter(scaling_factor*torch.randn((d_model, d_head)))
+        self.scaling_factor=1/math.sqrt(d_model)
+        self.Q = torch.nn.Linear(d_model, d_head, bias=False) 
+        self.K = torch.nn.Linear(d_model, d_head, bias=False)
+        self.V = torch.nn.Linear(d_model, d_head, bias=False)
+        self.O = torch.nn.Linear(d_head, d_model, bias=False)
         self.use_mask=use_mask
 
     def forward(self, residual_stream):
         attention=self.attention_pattern(residual_stream)
-        x=(residual_stream@self.V)@torch.transpose(self.O, dim0=0, dim1=1)
+        x=self.O(self.V(residual_stream))
         return attention@x
 
     def attention_pattern(self, residual_stream):
-        keys=residual_stream@self.K
-        queries=residual_stream@self.Q
-        pre_attention=queries@torch.transpose(keys, dim0=1, dim1=2)
+        keys=self.K(residual_stream)
+        queries=self.Q(residual_stream)
+        pre_attention=queries@torch.transpose(keys, dim0=1, dim1=2)*self.scaling_factor
         if self.use_mask:
             upper_triangular=torch.tril(torch.ones(pre_attention.shape))
             pre_attention=pre_attention.masked_fill(upper_triangular==0, float('-inf'))

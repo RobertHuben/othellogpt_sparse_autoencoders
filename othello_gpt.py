@@ -18,9 +18,9 @@ class OthelloGPT(nn.Module):
         self.position_embed_table=nn.Embedding(window_length, d_model)
         self.unembed=nn.Linear(d_model, vocab_size)
 
-        self.linear_encoders=[nn.Linear(in_features=d_model, out_features=4*d_model, bias=True)]
+        self.linear_encoders=[nn.Linear(in_features=d_model, out_features=4*d_model, bias=True) for _ in range(num_layers)]
         self.linear_activation=nn.GELU()
-        self.linear_decoders=[nn.Linear(in_features=4*d_model, out_features=d_model, bias=True)]
+        self.linear_decoders=[nn.Linear(in_features=4*d_model, out_features=d_model, bias=True) for _ in range(num_layers)]
         self.attention_sublayers=[MyMultiHeadAttention(d_model=self.d_model, n_heads=self.n_heads, use_mask=True) for _ in range(num_layers)]
 
 
@@ -29,7 +29,7 @@ class OthelloGPT(nn.Module):
         '''
         if input.shape[1]>self.window_length:
             input=input[:,:self.window_length]
-        if targets.shape[1]>self.window_length:
+        if targets != None and targets.shape[1]>self.window_length:
             targets=targets[:,:self.window_length]
         positions=torch.arange(self.window_length)
         logits=self.token_embed_table(input)+self.position_embed_table(positions)

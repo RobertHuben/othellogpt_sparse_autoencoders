@@ -2,6 +2,7 @@ import numpy as np
 from random import choice, seed 
 import matplotlib.pyplot as plt
 import os
+import torch
 
 class OthelloGame:
 
@@ -178,6 +179,13 @@ def string_to_move_log(move_log_string):
         move_log_split.pop()
     return [string_to_coordinates(move) for move in move_log_split]
 
+def int_to_coordinates(coords_as_int, game_board_size=8):
+    return (coords_as_int//game_board_size, coords_as_int%game_board_size)
+
+def coorinates_to_int(coords_as_tuple,game_board_size=8):
+    return game_board_size*coords_as_tuple[0]+coords_as_tuple[1]
+
+
 
 def test_conversion():
     random_move_log=generate_random_game()
@@ -190,6 +198,25 @@ def test_conversion():
 
 # for _ in range(100):
 #     test_conversion()
+
+def history_to_legal_moves(move_log_tensor):
+    valid_moves_by_game=[]
+    for game_log in move_log_tensor:
+        valid_moves_by_turn=[]
+        for move in game_log:
+            if move == 64:
+                game=OthelloGame()
+            else:
+                coords_as_tuple=int_to_coordinates(move, game_board_size=game.board_size)
+                game.make_move(coords_as_tuple)
+            valid_moves_as_tuple_list=game.list_legal_moves()
+            valid_moves_as_int_list=[coorinates_to_int(x, game.board_size) for x in valid_moves_as_tuple_list]
+            valid_moves_one_hot=[int(x in valid_moves_as_int_list) for x in range(66)]
+            valid_moves_by_turn.append(valid_moves_one_hot)
+        valid_moves_by_game.append(valid_moves_by_turn)
+    return torch.tensor(valid_moves_by_game)
+
+
 
 if __name__=="__main__":
     seed(0)

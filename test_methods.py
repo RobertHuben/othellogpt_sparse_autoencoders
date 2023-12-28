@@ -2,10 +2,10 @@ import othello_gpt
 from utils.tokenizer import encode, decode
 import torch
 import train
-
+import cProfile
 
 def test_training():
-    model=othello_gpt.OthelloGPT(num_layers=1, d_model=8, n_heads=2, window_length=64)
+    model=othello_gpt.OthelloGPT(num_layers=2, d_model=32, n_heads=8, window_length=4)
     train.train_model(model)
     return
 
@@ -18,6 +18,6 @@ def test_generation():
     print(x)
 
 
-# test_generation()
-test_training()
+test_generation()
+# cProfile.run("test_training()")
 
