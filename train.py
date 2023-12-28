@@ -12,7 +12,7 @@ def tokens_list():
 
 vocab=tokens_list()
 vocab_size=len(vocab)
-# block_size=64
+# block_size=64 # left this to an argument call
 batch_size=8
 max_iter=10000
 train_data, val_data=load_data()
@@ -25,7 +25,6 @@ def get_batch(split, block_size, batch_size=batch_size):
     data = train_data if split == 'train' else val_data
     split_points = split_points_train if split == 'train' else split_points_test
     ix = split_points[torch.randint(len(split_points)-1, (batch_size,))]
-    # ix= torch.randint(len(data) - block_size, (batch_size,))
     x = torch.stack([data[i:i+block_size] for i in ix])
     y = torch.stack([data[i+1:i+block_size+1] for i in ix])
     return x, y
@@ -43,21 +42,31 @@ def train_model(model):
         loss.backward()
         optimizer.step()
         if step in steps_to_print_on:
-            divergence=evaluate_kl_divergence(model, num_samples=100)
-            print(f"Loss and divergence after {step} steps: {loss.item():.4f}, {divergence:.4f}")
+            divergence=evaluate_kl_divergence(model)
+            accuracy=evaluate_top_one_accuracy(model)    
+            print(f"Loss, divergence, accuracy after {step} steps: {loss.item():.4f}, {divergence:.4f}, {accuracy:.4f}")
 
 @cache
-def get_data_and_legal_move_distribution(window_length, num_samples):
+def get_data_and_legal_moves(window_length, num_samples, normalize=True):
     xb,yb=get_batch("test", window_length, num_samples)
     legal_moves=history_to_legal_moves(xb)
-    legal_move_distribution=legal_moves/legal_moves.sum(dim=-1, keepdim=True)
-    return xb, legal_move_distribution
+    if normalize:
+        legal_moves=legal_moves/legal_moves.sum(dim=-1, keepdim=True)
+    return xb, legal_moves
 
-def evaluate_kl_divergence(model, num_samples=10):
-    xb, legal_move_distribution=get_data_and_legal_move_distribution(window_length=model.window_length, num_samples=num_samples)
+def evaluate_kl_divergence(model, num_samples=1000):
+    xb, legal_move_distribution=get_data_and_legal_moves(window_length=model.window_length, num_samples=num_samples, normalize=True)
     logits, loss=model(xb, None)
     kl_loss=torch.nn.KLDivLoss(reduction='batchmean')
     log_softmax=torch.nn.LogSoftmax(dim=-1)
     divergence=kl_loss(log_softmax(logits), legal_move_distribution)
     return float(divergence)
+
+def evaluate_top_one_accuracy(model, num_samples=1000):
+    xb, legal_moves=get_data_and_legal_moves(window_length=model.window_length, num_samples=num_samples, normalize=False)
+    logits, loss=model(xb, None)
+    largest_entry_locations=logits.argmax(dim=-1, keepdim=True)
+    one_hot_predictions = torch.zeros(legal_moves.shape).scatter(dim=-1, index=largest_entry_locations, src=torch.ones(legal_moves.shape))
+    accuracy=(legal_moves*one_hot_predictions).sum()/one_hot_predictions.sum()
+    return accuracy
 

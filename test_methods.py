@@ -18,6 +18,6 @@ def test_generation():
     print(x)
 
 
-test_generation()
+test_training()
 # cProfile.run("test_training()")
 
