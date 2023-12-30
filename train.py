@@ -46,10 +46,14 @@ def train_model(model, num_steps=10000, report_every_n_steps=500):
         loss.backward()
         optimizer.step()
         if step in steps_to_print_on:
+            if step == steps_to_print_on[0]:
+                print("Beginning first evaluation, this may take some time to cache the results")
             model.eval()
+            test_loss=evaluate_test_loss(model)
             divergence=evaluate_kl_divergence(model)
-            accuracy=evaluate_top_one_accuracy(model)    
-            print(f"Loss, divergence, accuracy after {step} steps: {loss.item():.4f}, {divergence:.4f}, {accuracy:.4f}")
+            accuracy=evaluate_top_one_accuracy(model)
+
+            print(f"Train loss, test loss,  divergence, accuracy after {step} steps: {loss.item():.4f}, {test_loss.item():.4f}, {divergence:.4f}, {accuracy:.4f}")
             model.train()
 
 @cache
@@ -58,7 +62,14 @@ def get_data_and_legal_moves(window_length, num_samples, key=0):
     legal_moves=history_to_legal_moves(xb)
     return xb, legal_moves
 
-def evaluate_kl_divergence(model, num_samples=1000):
+def evaluate_test_loss(model):
+    xb,yb=get_batch("test", block_size=model.window_length)
+    xb, yb =xb.to(device), yb.to(device)
+    logits, loss=model(xb, yb)
+    return loss
+
+
+def evaluate_kl_divergence(model, num_samples=80):
     batch_size=8
     batches=num_samples//batch_size
     divergences=[]
