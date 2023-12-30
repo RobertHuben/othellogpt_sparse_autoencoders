@@ -18,7 +18,7 @@ def full_scale_training(save=False):
     model=othello_gpt.OthelloGPT(num_layers=8, d_model=512, n_heads=8, window_length=64)
     train.train_model(model)
     if save:
-        with open("trained_model_full.pkl") as f:
+        with open("trained_model_full.pkl", 'wb') as f:
             pickle.dump(model, f)
     return
 
@@ -31,7 +31,7 @@ def test_generation():
     print(x)
 
 
-test_training()
-# full_scale_training()
+# test_training(save=True)
+full_scale_training(save=True)
 # cProfile.run("test_training()")
 
