@@ -19,6 +19,7 @@ train_data, val_data=load_data()
 split_token_index=vocab.index("XX")
 split_points_train=torch.tensor([position for position, token in enumerate(train_data) if token==split_token_index])
 split_points_test=torch.tensor([position for position, token in enumerate(val_data) if token==split_token_index])
+device='cuda' if torch.cuda.is_available() else 'cpu'
 
 def get_batch(split, block_size, batch_size=batch_size):
     # generate a small batch of data of inputs x and targets y
@@ -32,6 +33,7 @@ def get_batch(split, block_size, batch_size=batch_size):
 
 def train_model(model, report_every_n_steps=500):
     torch.manual_seed(1337)
+    model.train()
 
     optimizer=torch.optim.AdamW(model.parameters(), lr=1e-3)
     steps_to_print_on=[report_every_n_steps*x for x in range(1, max_iter//report_every_n_steps)]
@@ -42,9 +44,11 @@ def train_model(model, report_every_n_steps=500):
         loss.backward()
         optimizer.step()
         if step in steps_to_print_on:
+            model.eval()
             divergence=evaluate_kl_divergence(model)
             accuracy=evaluate_top_one_accuracy(model)    
             print(f"Loss, divergence, accuracy after {step} steps: {loss.item():.4f}, {divergence:.4f}, {accuracy:.4f}")
+            model.train()
 
 @cache
 def get_data_and_legal_moves(window_length, num_samples, normalize=True):
