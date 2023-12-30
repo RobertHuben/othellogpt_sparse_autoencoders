@@ -50,12 +50,11 @@ def train_model(model, report_every_n_steps=500):
 def get_data_and_legal_moves(window_length, num_samples, normalize=True):
     xb,yb=get_batch("test", window_length, num_samples)
     legal_moves=history_to_legal_moves(xb)
-    if normalize:
-        legal_moves=legal_moves/legal_moves.sum(dim=-1, keepdim=True)
     return xb, legal_moves
 
 def evaluate_kl_divergence(model, num_samples=1000):
-    xb, legal_move_distribution=get_data_and_legal_moves(window_length=model.window_length, num_samples=num_samples, normalize=True)
+    xb, legal_moves=get_data_and_legal_moves(window_length=model.window_length, num_samples=num_samples)
+    legal_move_distribution=legal_moves/legal_moves.sum(dim=-1, keepdim=True)
     logits, loss=model(xb, None)
     kl_loss=torch.nn.KLDivLoss(reduction='batchmean')
     log_softmax=torch.nn.LogSoftmax(dim=-1)
