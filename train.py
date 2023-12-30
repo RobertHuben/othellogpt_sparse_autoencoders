@@ -14,7 +14,6 @@ vocab=tokens_list()
 vocab_size=len(vocab)
 # block_size=64 # left this to an argument call
 batch_size=8
-max_iter=10000
 train_data, val_data=load_data()
 split_token_index=vocab.index("XX")
 split_points_train=torch.tensor([position for position, token in enumerate(train_data) if token==split_token_index])
@@ -31,14 +30,14 @@ def get_batch(split, block_size, batch_size=batch_size):
     return x, y
 
 
-def train_model(model, report_every_n_steps=500):
+def train_model(model, num_steps=10000, report_every_n_steps=500):
     torch.manual_seed(1337)
     model.train()
     model.to(device)
 
     optimizer=torch.optim.AdamW(model.parameters(), lr=1e-3)
-    steps_to_print_on=[report_every_n_steps*x for x in range(1, max_iter//report_every_n_steps)]
-    for step in range(max_iter):
+    steps_to_print_on=[report_every_n_steps*x for x in range(1, num_steps//report_every_n_steps)]+[num_steps-1]
+    for step in range(num_steps):
         xb,yb=get_batch("train", block_size=model.window_length)
         xb, yb =xb.to(device), yb.to(device)
         logits, loss=model(xb, yb)
