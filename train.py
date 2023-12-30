@@ -32,8 +32,9 @@ def get_batch(split, block_size, batch_size=batch_size):
 
 def train_model(model, num_steps=10000, report_every_n_steps=500):
     torch.manual_seed(1337)
-    model.train()
     model.to(device)
+    model.train()
+    print(f"Beginning model training on {device}!")
 
     optimizer=torch.optim.AdamW(model.parameters(), lr=1e-3)
     steps_to_print_on=[report_every_n_steps*x for x in range(1, num_steps//report_every_n_steps)]+[num_steps-1]
@@ -52,27 +53,36 @@ def train_model(model, num_steps=10000, report_every_n_steps=500):
             model.train()
 
 @cache
-def get_data_and_legal_moves(window_length, num_samples, normalize=True):
+def get_data_and_legal_moves(window_length, num_samples, key=0):
     xb,yb=get_batch("test", window_length, num_samples)
     legal_moves=history_to_legal_moves(xb)
     return xb, legal_moves
 
 def evaluate_kl_divergence(model, num_samples=1000):
-    xb, legal_moves=get_data_and_legal_moves(window_length=model.window_length, num_samples=num_samples)
-    xb, legal_moves =xb.to(device), legal_moves.to(device)
-    legal_move_distribution=legal_moves/legal_moves.sum(dim=-1, keepdim=True)
-    logits, loss=model(xb, None)
-    kl_loss=torch.nn.KLDivLoss(reduction='batchmean')
-    log_softmax=torch.nn.LogSoftmax(dim=-1)
-    divergence=kl_loss(log_softmax(logits), legal_move_distribution)
-    return float(divergence)
+    batch_size=8
+    batches=num_samples//batch_size
+    divergences=[]
+    for n in range(batches):
+        xb, legal_moves=get_data_and_legal_moves(window_length=model.window_length, num_samples=batch_size, key=n)
+        xb, legal_moves =xb.to(device), legal_moves.to(device)
+        legal_move_distribution=legal_moves/legal_moves.sum(dim=-1, keepdim=True)
+        logits, loss=model(xb, None)
+        kl_loss=torch.nn.KLDivLoss(reduction='batchmean')
+        log_softmax=torch.nn.LogSoftmax(dim=-1)
+        divergences.append(kl_loss(log_softmax(logits), legal_move_distribution))
+    return float(torch.tensor(divergences).mean())
 
-def evaluate_top_one_accuracy(model, num_samples=1000):
-    xb, legal_moves=get_data_and_legal_moves(window_length=model.window_length, num_samples=num_samples, normalize=False)
-    xb, legal_moves =xb.to(device), legal_moves.to(device)
-    logits, loss=model(xb, None)
-    largest_entry_locations=logits.argmax(dim=-1, keepdim=True)
-    one_hot_predictions = torch.zeros(legal_moves.shape).scatter(dim=-1, index=largest_entry_locations, src=torch.ones(legal_moves.shape))
-    accuracy=(legal_moves*one_hot_predictions).sum()/one_hot_predictions.sum()
-    return accuracy
+def evaluate_top_one_accuracy(model, num_samples=80):
+    batch_size=8
+    batches=num_samples//batch_size
+    accuracies=[]
+    for n in range(batches):
+        xb, legal_moves=get_data_and_legal_moves(window_length=model.window_length, num_samples=batch_size, key=n)
+        xb, legal_moves =xb.to(device), legal_moves.to(device)
+        logits, loss=model(xb, None)
+        largest_entry_locations=logits.argmax(dim=-1, keepdim=True)
+        one_hot_predictions = torch.zeros(legal_moves.shape).to(device)
+        one_hot_predictions = one_hot_predictions.scatter(dim=-1, index=largest_entry_locations, src=torch.ones(legal_moves.shape, device=device))
+        accuracies.append((legal_moves*one_hot_predictions).sum()/one_hot_predictions.sum())
+    return float(torch.tensor(accuracies).mean())
 
