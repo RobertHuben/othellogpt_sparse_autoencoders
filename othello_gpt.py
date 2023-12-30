@@ -18,10 +18,7 @@ class OthelloGPT(nn.Module):
         self.unembed=nn.Linear(d_model, vocab_size)
 
         self.linear_activation=nn.GELU()
-        self.mlps=[myMLPLayer(d_model=self.d_model, activation=self.linear_activation) for _ in range(num_layers)]
-        # self.linear_encoders=[nn.Linear(in_features=d_model, out_features=4*d_model, bias=True) for _ in range(num_layers)]
-        # self.linear_decoders=[nn.Linear(in_features=4*d_model, out_features=d_model, bias=True) for _ in range(num_layers)]
-        self.attention_sublayers=[MyMultiHeadAttention(d_model=self.d_model, n_heads=self.n_heads, use_mask=True) for _ in range(num_layers)]
+        self.blocks=nn.Sequential(*(MyTransformerBlock(d_model=d_model, n_heads=n_heads, linear_activation=self.linear_activation) for _ in range(self.num_layers)))
 
 
     def forward(self, input, targets=None):
@@ -33,9 +30,7 @@ class OthelloGPT(nn.Module):
             targets=targets[:,:self.window_length]
         positions=torch.arange(self.window_length)
         logits=self.token_embed_table(input)+self.position_embed_table(positions)
-        for layer in range(self.num_layers):
-            logits=logits+self.attention_sublayers[layer](logits)
-            logits=logits+self.mlps[layer](logits)
+        logits=self.blocks(logits)
         logits=self.unembed(logits)
         if targets is None:
             loss=None
@@ -43,7 +38,6 @@ class OthelloGPT(nn.Module):
             loss=F.cross_entropy(torch.transpose(logits, dim0=1, dim1=2), targets)
         return logits,loss
     
-
     def generate(self, input, max_new_tokens):
         for _ in range(max_new_tokens):
             logits, loss=self(input)
@@ -53,8 +47,6 @@ class OthelloGPT(nn.Module):
             input=torch.concatenate((input, idx_next), dim=1)
         return input
     
-
-
 class MyAttentionHead(torch.nn.Module):
 
     def __init__(self, d_head, d_model, use_mask=True):
@@ -113,4 +105,19 @@ class myMLPLayer(torch.nn.Module):
 
 
 class MyTransformerBlock(torch.nn.Module):
-    pass
+
+    def __init__(self, d_model, n_heads, linear_activation, use_mask=True):
+        super().__init__()
+        self.attention_sublayer=MyMultiHeadAttention(d_model=d_model, n_heads=n_heads, use_mask=use_mask)
+        self.mlp_sublayer=myMLPLayer(d_model=d_model, activation=linear_activation)
+
+    def forward(self, residual_stream):
+        residual_stream=residual_stream+self.attention_sublayer(layernorm(residual_stream))
+        residual_stream=residual_stream+self.mlp_sublayer(layernorm(residual_stream))
+        return residual_stream
+    
+
+def layernorm(x):
+    eps=1e-10
+    std, mean=torch.std_mean(x, dim=-1, keepdim=True)
+    return (x-mean)/(std+eps)
