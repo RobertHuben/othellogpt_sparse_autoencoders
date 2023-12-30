@@ -3,10 +3,21 @@ from utils.tokenizer import encode, decode
 import torch
 import train
 import cProfile
+import pickle
 
 def test_training():
-    model=othello_gpt.OthelloGPT(num_layers=2, d_model=32, n_heads=8, window_length=4)
+    model=othello_gpt.OthelloGPT(num_layers=4, d_model=32, n_heads=8, window_length=4)
+    train.train_model(model, report_every_n_steps=500)
+    with open("trained_model_test.pkl", 'wb') as f:
+        pickle.dump(model, f)
+    return
+
+
+def full_scale_training():
+    model=othello_gpt.OthelloGPT(num_layers=8, d_model=512, n_heads=8, window_length=64)
     train.train_model(model)
+    with open("trained_model_full.pkl") as f:
+        pickle.dump(model, f)
     return
 
 
@@ -19,5 +30,6 @@ def test_generation():
 
 
 test_training()
+# full_scale_training()
 # cProfile.run("test_training()")
 
