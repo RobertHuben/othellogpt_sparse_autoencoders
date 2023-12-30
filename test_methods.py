@@ -6,7 +6,7 @@ import cProfile
 import pickle
 
 def test_training(save=False):
-    model=othello_gpt.OthelloGPT(num_layers=4, d_model=32, n_heads=8, window_length=16)
+    model=othello_gpt.OthelloGPT(num_layers=2, d_model=32, n_heads=8, window_length=4)
     train.train_model(model, report_every_n_steps=500)
     if save:
         with open("trained_model_test.pkl", 'wb') as f:
