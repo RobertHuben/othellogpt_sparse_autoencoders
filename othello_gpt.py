@@ -35,7 +35,7 @@ class OthelloGPT(nn.Module):
             input=input[:,:self.window_length]
         if targets != None and targets.shape[1]>self.window_length:
             targets=targets[:,:self.window_length]
-        positions=torch.arange(self.window_length)
+        positions=torch.arange(self.window_length).to(input.get_device())
         logits=self.token_embed_table(input)+self.position_embed_table(positions)
         logits=self.blocks(logits)
         logits=self.final_layer_norm(logits)
@@ -61,7 +61,7 @@ class MyAttentionHead(torch.nn.Module):
         super().__init__()
         self.d_model=d_model
         self.d_head=d_head
-        self.scaling_factor=1/torch.sqrt(torch.tensor([d_model]))
+        self.scaling_factor=torch.nn.Parameter(1/torch.sqrt(torch.tensor([d_model])), requires_grad=False)
         self.Q = torch.nn.Linear(d_model, d_head, bias=False) 
         self.K = torch.nn.Linear(d_model, d_head, bias=False)
         self.V = torch.nn.Linear(d_model, d_head, bias=False)
@@ -81,7 +81,7 @@ class MyAttentionHead(torch.nn.Module):
         queries=self.Q(residual_stream)
         pre_attention=queries@torch.transpose(keys, dim0=1, dim1=2)*self.scaling_factor
         if self.use_mask:
-            upper_triangular=torch.tril(torch.ones(pre_attention.shape))
+            upper_triangular=torch.tril(torch.ones(pre_attention.shape)).to(residual_stream.device)
             pre_attention=pre_attention.masked_fill(upper_triangular==0, float('-inf'))
         attention=F.softmax(pre_attention, dim=-1)
         return attention
@@ -141,9 +141,9 @@ class LayerNorm(torch.nn.Module):
 
     def __init__(self, dim, eps=1e-10):
         super().__init__()
-        self.eps=eps
-        self.beta=torch.zeros(dim)
-        self.gamma=torch.ones(dim)
+        self.eps=nn.Parameter(torch.tensor([eps],requires_grad=False))
+        self.beta=nn.Parameter(torch.zeros(dim))
+        self.gamma=nn.Parameter(torch.ones(dim))
     
     def forward(self, x):
         std, mean=torch.std_mean(x, dim=-1, keepdim=True)
