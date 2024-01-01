@@ -14,7 +14,7 @@ vocab=tokens_list()
 vocab_size=len(vocab)
 # block_size=64 # left this to an argument call
 batch_size=8
-train_data, val_data=load_data()
+train_data, val_data=load_data("datasets/othellogpt_training_corpus.txt")
 split_token_index=vocab.index("XX")
 split_points_train=torch.tensor([position for position, token in enumerate(train_data) if token==split_token_index])
 split_points_test=torch.tensor([position for position, token in enumerate(val_data) if token==split_token_index])
@@ -52,6 +52,9 @@ def train_model(model, num_steps=10000, report_every_n_steps=500):
             test_loss=evaluate_test_loss(model)
             divergence=evaluate_kl_divergence(model)
             accuracy=evaluate_top_one_accuracy(model)
+            if step == steps_to_print_on[-1]:
+                accuracy_by_turn=evaluate_top_one_accuracy_by_turn(model)
+                print(f"Accuracy after training step {step}, on turns 1, 2, 3, ...: {accuracy_by_turn}")
 
             print(f"Train loss, test loss,  divergence, accuracy after {step} steps: {loss.item():.4f}, {test_loss.item():.4f}, {divergence:.4f}, {accuracy:.4f}")
             model.train()
@@ -96,4 +99,18 @@ def evaluate_top_one_accuracy(model, num_samples=80):
         one_hot_predictions = one_hot_predictions.scatter(dim=-1, index=largest_entry_locations, src=torch.ones(legal_moves.shape, device=device))
         accuracies.append((legal_moves*one_hot_predictions).sum()/one_hot_predictions.sum())
     return float(torch.tensor(accuracies).mean())
+
+def evaluate_top_one_accuracy_by_turn(model, num_samples=80):
+    batch_size=8
+    batches=num_samples//batch_size
+    accuracies=[]
+    for n in range(batches):
+        xb, legal_moves=get_data_and_legal_moves(window_length=model.window_length, num_samples=batch_size, key=n)
+        xb, legal_moves =xb.to(device), legal_moves.to(device)
+        logits, loss=model(xb, None)
+        largest_entry_locations=logits.argmax(dim=-1, keepdim=True)
+        one_hot_predictions = torch.zeros(legal_moves.shape).to(device)
+        one_hot_predictions = one_hot_predictions.scatter(dim=-1, index=largest_entry_locations, src=torch.ones(legal_moves.shape, device=device))
+        accuracies.append((legal_moves*one_hot_predictions).sum(dim=(0,2))/one_hot_predictions.sum(dim=(0,2)))
+    return torch.stack(accuracies).mean(dim=0)
 
