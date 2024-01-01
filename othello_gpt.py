@@ -35,7 +35,9 @@ class OthelloGPT(nn.Module):
             input=input[:,:self.window_length]
         if targets != None and targets.shape[1]>self.window_length:
             targets=targets[:,:self.window_length]
-        positions=torch.arange(self.window_length).to(input.get_device())
+        positions=torch.arange(input.shape[1])
+        if input.get_device()>=0:
+            positions=positions.to(input.get_device())
         logits=self.token_embed_table(input)+self.position_embed_table(positions)
         logits=self.blocks(logits)
         logits=self.final_layer_norm(logits)
@@ -54,6 +56,18 @@ class OthelloGPT(nn.Module):
             idx_next=torch.multinomial(probs, num_samples=1)
             input=torch.concatenate((input, idx_next), dim=1)
         return input
+    
+    def intermediate_residual_stream(self, input, layer_num):
+        # returns the state of the residual stream after applying the first layer_num transformer blocks
+        # so layer_num=0 is the initial stream, 1 is after the the first block, etc
+        if input.shape[1]>self.window_length:
+            input=input[:,:self.window_length]
+        positions=torch.arange(input.shape[1])
+        if input.get_device()>=0:
+            positions=positions.to(input.get_device())
+        logits=self.token_embed_table(input)+self.position_embed_table(positions)
+        logits=self.blocks[:layer_num](logits)
+        return logits
     
 class MyAttentionHead(torch.nn.Module):
 
