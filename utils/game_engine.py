@@ -83,17 +83,11 @@ class OthelloGame:
                     break
         return pieces_to_flip
 
-    def is_legal_move(self, coordinates):
-        return self.pieces_to_flip_with_move_at(coordinates, early_stop=True)
-
+    # def is_legal_move(self, coordinates):
+    #     return self.pieces_to_flip_with_move_at(coordinates, early_stop=True)
 
     def list_legal_moves(self):
-        legal_moves=[]
-        for x in range(self.board_size):
-            for y in range(self.board_size):
-                if self.is_legal_move((x,y)):
-                    legal_moves.append((x,y))
-        return legal_moves
+        return [(x,y) for x in range(self.board_size) for y in range(self.board_size) if self.pieces_to_flip_with_move_at((x,y), early_stop=True)]
 
     def print_board(self):
         piece_markers={0:".", 1:"O", -1:"*"}
