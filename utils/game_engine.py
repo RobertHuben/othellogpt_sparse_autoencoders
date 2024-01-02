@@ -203,17 +203,19 @@ def history_to_legal_moves(move_log_tensor):
     valid_moves_by_game=[]
     for game_log in move_log_tensor:
         valid_moves_by_turn=[]
+        game=OthelloGame()
         for move in game_log:
-            if move == 64:
-                game=OthelloGame()
+            if move in [64,65]:
+                # game was terminated or is in the padding after termination
+                valid_moves_as_int_list=[65]
             else:
                 coords_as_tuple=int_to_coordinates(move, game_board_size=game.board_size)
                 game.make_move(coords_as_tuple)
-            valid_moves_as_tuple_list=game.list_legal_moves()
-            valid_moves_as_int_list=[coorinates_to_int(x, game.board_size) for x in valid_moves_as_tuple_list]
-            if not valid_moves_as_int_list:
-                #game has ended early, put in a new game marker
-                valid_moves_as_int_list=[64]
+                valid_moves_as_tuple_list=game.list_legal_moves()
+                valid_moves_as_int_list=[coorinates_to_int(x, game.board_size) for x in valid_moves_as_tuple_list]
+                if not valid_moves_as_int_list:
+                    #game has ended early, put in a pad token
+                    valid_moves_as_int_list=[65]
             valid_moves_one_hot=[int(x in valid_moves_as_int_list) for x in range(66)]
             valid_moves_by_turn.append(valid_moves_one_hot)
         valid_moves_by_game.append(valid_moves_by_turn)
