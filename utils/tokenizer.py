@@ -43,8 +43,7 @@ def decode(int_sequence):
     return game_log
 
 
-def load_data(train_split=.9):
-    data_location="training_corpus.txt"
+def load_data(data_location, train_split=.9):
     with open(data_location) as f:
         input_as_text=f.read()
     input_as_text=input_as_text.replace("\n", " ")
