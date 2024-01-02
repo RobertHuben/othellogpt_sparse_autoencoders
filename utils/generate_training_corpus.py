@@ -3,8 +3,16 @@ from game_engine import generate_random_game, move_log_to_string
 import time
 
 
-def generate_training_corpus(num_games=100, random_seed=42, to_write_location="training_corpus.txt", write_mode='w'):
-    seed(random_seed)
+def generate_evaluation_corpus(num_games=100, to_write_location="datasets/eval_corpus.txt", write_mode='w'):
+    games_as_list=[move_log_to_string(generate_random_game(), insert_terminal_XX=True) for _ in range(num_games)]
+    games_as_string="\n".join(games_as_list)
+    with open(to_write_location, write_mode) as f:
+        if write_mode=="a":
+            f.write("\n")
+        f.write(games_as_string)
+    return
+
+def generate_training_corpus(num_games=100, to_write_location="datasets/training_corpus.txt", write_mode='w'):
     games_as_list=[move_log_to_string(generate_random_game(), insert_terminal_XX=True) for _ in range(num_games)]
     games_as_string="\n".join(games_as_list)
     with open(to_write_location, write_mode) as f:
@@ -14,9 +22,23 @@ def generate_training_corpus(num_games=100, random_seed=42, to_write_location="t
     return
 
 if __name__=="__main__":
-    for n in range(80):
+    for n in range(1):
         start=time.time()
         k=1000
-        generate_training_corpus(k, write_mode='a')
+        generate_training_corpus(k, write_mode='a', to_write_location="datasets/othello_gpt_test_corpus.txt")
+        end=time.time()
+        print(f"Time for {k}: {end-start} seconds")
+
+    for n in range(20):
+        start=time.time()
+        k=1000
+        generate_training_corpus(k, write_mode='a', to_write_location="datasets/othello_gpt_training_corpus.txt")
+        end=time.time()
+        print(f"Time for {k}: {end-start} seconds")
+
+    for n in range(10):
+        start=time.time()
+        k=1000
+        generate_training_corpus(k, write_mode='a', to_write_location="datasets/sae_training_corpus.txt")
         end=time.time()
         print(f"Time for {k}: {end-start} seconds")
