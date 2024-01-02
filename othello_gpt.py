@@ -2,20 +2,21 @@ import torch
 import torch.nn as nn
 from torch.nn import functional as F
 # from utils.tokenizer import encode, decode
+from utils.game_engine import tokens_list
 
 class OthelloGPT(nn.Module):
 
-    def __init__(self, num_layers, d_model, n_heads, window_length=64, vocab_size=66, dropout_chance=.2, tied_embed=False):
+    def __init__(self, num_layers, d_model, n_heads, window_length=64, dropout_chance=.2, tied_embed=False):
         super().__init__()
         self.num_layers=num_layers
         self.d_model=d_model
         self.n_heads=n_heads
         self.window_length=window_length
-        self.vocab_size=vocab_size
+        self.vocab_size=len(tokens_list())
         self.d_head=int(d_model/n_heads)
-        self.token_embed_table=nn.Embedding(vocab_size, d_model)
+        self.token_embed_table=nn.Embedding(self.vocab_size, d_model)
         self.position_embed_table=nn.Embedding(window_length, d_model)
-        self.unembed=nn.Linear(d_model, vocab_size)
+        self.unembed=nn.Linear(d_model, self.vocab_size)
         self.dropout_chance=dropout_chance
 
         self.linear_activation=nn.GELU()
