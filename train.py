@@ -1,8 +1,8 @@
 import torch
 from utils.tokenizer import load_data
-from utils.game_engine import history_to_legal_moves
+from utils.game_engine import history_to_legal_moves, tokens_list
 from functools import cache
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import Dataset, DataLoader, RandomSampler
 
 device='cuda' if torch.cuda.is_available() else 'cpu'
 
@@ -32,11 +32,6 @@ class OthelloDataset(Dataset):
         labels =extended_moves[1:]
         return inputs, labels
 
-def tokens_list():
-    tokens=[f"{letter}{number}" for letter in "ABCDEFGH" for number in range(1,9)]
-    tokens.append("XX") #end-of-game token
-    tokens.append("PP") #pad token
-    return tokens
 
 
 def get_dataloder(mode, window_length, batch_size):
@@ -61,7 +56,12 @@ def train_othello_gpt_model(model, num_steps=10000, report_every_n_steps=500):
     steps_to_print_on=[report_every_n_steps*x for x in range(1, num_steps//report_every_n_steps)]+[num_steps-1]
     print(f"Beginning model training on {device}!")
     for step in range(num_steps):
-        input_batch,label_batch = next(train_dataloader)
+        try:
+            input_batch,label_batch = next(train_dataloader)
+        except StopIteration:
+            # loops over epochs
+            train_dataloader=iter(get_dataloder(mode="gpt_train", window_length=model.window_length, batch_size=batch_size))
+            input_batch,label_batch = next(train_dataloader)
         logits, loss=model(input_batch, label_batch)
         optimizer.zero_grad(set_to_none=True)
         loss.backward()
@@ -77,14 +77,16 @@ def train_othello_gpt_model(model, num_steps=10000, report_every_n_steps=500):
                 accuracy_by_turn=evaluate_top_one_accuracy_by_turn(model)
                 print(f"After training step {step}/{num_steps}, accuracy on turns 1, 2, 3, ...: {accuracy_by_turn}")
 
-            print(f"Train loss, test loss, divergence, accuracy after {step} steps: {loss.item():.4f}, {test_loss.item():.4f}, {divergence:.4f}, {accuracy:.4f}")
+            print(f"Train loss, test loss, divergence, accuracy after {step}/{num_steps} steps: {loss.item():.4f}, {test_loss.item():.4f}, {divergence:.4f}, {accuracy:.4f}")
             model.train()
 
 @cache
 def get_data_and_legal_moves(window_length, num_samples, key=0):
     test_dataloader=iter(get_dataloder("gpt_test", window_length=window_length, batch_size=8))
     test_labels, test_input= next(test_dataloader)
+    test_labels=test_labels.to("cpu")
     legal_moves=history_to_legal_moves(test_labels)
+    test_labels, legal_moves=test_labels.to(device), legal_moves.to(device)
     return test_labels, legal_moves
 
 def evaluate_test_loss(model):
