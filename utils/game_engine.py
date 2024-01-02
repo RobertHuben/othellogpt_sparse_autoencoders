@@ -185,6 +185,13 @@ def int_to_coordinates(coords_as_int, game_board_size=8):
 def coorinates_to_int(coords_as_tuple,game_board_size=8):
     return game_board_size*coords_as_tuple[0]+coords_as_tuple[1]
 
+def tokens_list():
+    tokens=[f"{letter}{number}" for letter in "ABCDEFGH" for number in range(1,9)]
+    tokens.append("XX") #end-of-game token
+    tokens.append("PP") #pad token
+    # tokens.append("SS") #start-of-game token
+    return tokens
+
 
 
 def test_conversion():
@@ -201,6 +208,7 @@ def test_conversion():
 
 def history_to_legal_moves(move_log_tensor):
     valid_moves_by_game=[]
+    vocab_size=len(tokens_list())
     for game_log in move_log_tensor:
         valid_moves_by_turn=[]
         game=OthelloGame()
@@ -216,7 +224,7 @@ def history_to_legal_moves(move_log_tensor):
                 if not valid_moves_as_int_list:
                     #game has ended early, put in a pad token
                     valid_moves_as_int_list=[65]
-            valid_moves_one_hot=[int(x in valid_moves_as_int_list) for x in range(66)]
+            valid_moves_one_hot=[int(x in valid_moves_as_int_list) for x in range(vocab_size)]
             valid_moves_by_turn.append(valid_moves_one_hot)
         valid_moves_by_game.append(valid_moves_by_turn)
     return torch.tensor(valid_moves_by_game)
