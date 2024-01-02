@@ -67,7 +67,7 @@ class OthelloGame:
             enemy_pieces_in_this_direction=[]
             next_coordinates=coordinates
             for _ in range(self.board_size):
-                next_coordinates+=direction
+                next_coordinates=tuple(next_coordinates+direction)
                 if not self.coordinates_on_board(tuple(next_coordinates)):
                     break
                 next_move_state=self.board[tuple(next_coordinates)]*self.active_player
