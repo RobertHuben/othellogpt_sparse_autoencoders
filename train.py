@@ -20,17 +20,28 @@ split_points_train=torch.tensor([position for position, token in enumerate(train
 split_points_test=torch.tensor([position for position, token in enumerate(val_data) if token==split_token_index])
 device='cuda' if torch.cuda.is_available() else 'cpu'
 
+sae_train_data, _=load_data("datasets/othellogpt_training_corpus.txt", train_split=1)
+split_points_sae=torch.tensor([position for position, token in enumerate(sae_train_data) if token==split_token_index])
+
 def get_batch(split, block_size, batch_size=batch_size):
     # generate a small batch of data of inputs x and targets y
-    data = train_data if split == 'train' else val_data
-    split_points = split_points_train if split == 'train' else split_points_test
+    if split=="train":
+        data = train_data
+        split_points = split_points_train
+    elif split=="test":
+        data=val_data
+        split_points=split_points_test
+    elif split=="sae":
+        data=sae_train_data
+        split_points=split_points_sae
     ix = split_points[torch.randint(len(split_points)-2, (batch_size,))]
     x = torch.stack([data[i:i+block_size] for i in ix])
     y = torch.stack([data[i+1:i+block_size+1] for i in ix])
     return x, y
 
 
-def train_model(model, num_steps=10000, report_every_n_steps=500):
+
+def train_othello_gpt_model(model, num_steps=10000, report_every_n_steps=500):
     torch.manual_seed(1337)
     model.to(device)
     model.train()
@@ -54,9 +65,9 @@ def train_model(model, num_steps=10000, report_every_n_steps=500):
             accuracy=evaluate_top_one_accuracy(model)
             if step == steps_to_print_on[-1]:
                 accuracy_by_turn=evaluate_top_one_accuracy_by_turn(model)
-                print(f"Accuracy after training step {step}, on turns 1, 2, 3, ...: {accuracy_by_turn}")
+                print(f"Accuracy after training step {step}/{num_steps}, on turns 1, 2, 3, ...: {accuracy_by_turn}")
 
-            print(f"Train loss, test loss,  divergence, accuracy after {step} steps: {loss.item():.4f}, {test_loss.item():.4f}, {divergence:.4f}, {accuracy:.4f}")
+            print(f"Train loss, test loss, divergence, accuracy after {step} steps: {loss.item():.4f}, {test_loss.item():.4f}, {divergence:.4f}, {accuracy:.4f}")
             model.train()
 
 @cache
@@ -114,3 +125,37 @@ def evaluate_top_one_accuracy_by_turn(model, num_samples=80):
         accuracies.append((legal_moves*one_hot_predictions).sum(dim=(0,2))/one_hot_predictions.sum(dim=(0,2)))
     return torch.stack(accuracies).mean(dim=0)
 
+def get_batch_sae(split, block_size, batch_size=batch_size):
+    # generate a small batch of data of inputs x and targets y
+    data = train_data if split == 'train' else val_data
+    split_points = split_points_train if split == 'train' else split_points_test
+    ix = split_points[torch.randint(len(split_points)-2, (batch_size,))]
+    x = torch.stack([data[i:i+block_size] for i in ix])
+    y = torch.stack([data[i+1:i+block_size+1] for i in ix])
+    return x, y
+
+
+def train_sparse_autoencoder(sae_model, language_model, target_layer=1, num_steps=1000, report_every_n_steps=50):
+    torch.manual_seed(1337)
+    sae_model.to(device)
+    language_model.to(device)
+    sae_model.train()
+
+    # freeze model weights
+    for parameter in language_model.parameters():
+        parameter.requires_grad=False
+    
+    print(f"Beginning to train a SAE on {device}!")
+    optimizer=torch.optim.AdamW(sae_model.parameters(), lr=1e-3)
+    steps_to_print_on=[report_every_n_steps*x for x in range(1, num_steps//report_every_n_steps)]+[num_steps-1]
+    for step in range(num_steps):
+        xb,_=get_batch("sae", block_size=1)
+        xb =xb.to(device)
+        model_activations=language_model.intermediate_residual_stream(xb, target_layer)
+
+        reconstruction, hidden_layer, loss=sae_model(model_activations)
+        optimizer.zero_grad(set_to_none=True)
+        loss.backward()
+        optimizer.step()
+        if step in steps_to_print_on:
+            print(f"Train loss after {step}/{num_steps} steps: {loss.item():.4f}")
