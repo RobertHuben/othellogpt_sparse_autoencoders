@@ -35,9 +35,9 @@ class OthelloGPT(nn.Module):
             input=input[:,:self.window_length]
         if targets != None and targets.shape[1]>self.window_length:
             targets=targets[:,:self.window_length]
-        positions=torch.arange(input.shape[1])
-        if input.get_device()>=0:
-            positions=positions.to(input.get_device())
+        model_device=next(self.parameters()).device
+        input=input.to(model_device)
+        positions=torch.arange(input.shape[1]).to(model_device)
         logits=self.token_embed_table(input)+self.position_embed_table(positions)
         logits=self.blocks(logits)
         logits=self.final_layer_norm(logits)
@@ -49,6 +49,8 @@ class OthelloGPT(nn.Module):
         return logits,loss
     
     def generate(self, input, max_new_tokens):
+        model_device=next(self.parameters()).device
+        input.to(model_device)
         for _ in range(max_new_tokens):
             logits, loss=self(input)
             logits=logits[:,-1,:]
