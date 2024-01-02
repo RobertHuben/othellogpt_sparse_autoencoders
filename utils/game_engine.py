@@ -3,6 +3,7 @@ from random import choice, seed
 import matplotlib.pyplot as plt
 import os
 import torch
+from functools import cache
 
 class OthelloGame:
 
@@ -16,6 +17,7 @@ class OthelloGame:
         self.turns_history=[]
         self.just_flipped=[]
         self.active_player=1
+        self.directions=self.get_directions()
 
     def make_move(self, coordinates):
         '''
@@ -36,6 +38,7 @@ class OthelloGame:
         else:
             return False
 
+    @cache 
     def coordinates_on_board(self, coordinates):
         '''
         checks if the listed coordinates are on the board
@@ -51,7 +54,7 @@ class OthelloGame:
         all_directions.pop(4) # this is the (0,0) direction so should be removed
         return all_directions
 
-    def pieces_to_flip_with_move_at(self, coordinates):
+    def pieces_to_flip_with_move_at(self, coordinates, early_stop=False):
         '''
         returns a list of the pieces that would be flipped if the active player placed a piece at coordinates
         returns the empty list if the move is invalid
@@ -59,23 +62,29 @@ class OthelloGame:
         if self.board[coordinates]!=0:
             return []
         pieces_to_flip=[]
-        directions=self.get_directions()
-        for direction in directions:
+        # directions=self.get_directions()
+        for direction in self.directions:
             enemy_pieces_in_this_direction=[]
-            next_coordinates=coordinates+direction
-            while self.coordinates_on_board(next_coordinates):
-                if self.board[tuple(next_coordinates)]*self.active_player==-1:
+            next_coordinates=coordinates
+            for _ in range(self.board_size):
+                next_coordinates+=direction
+                if not self.coordinates_on_board(tuple(next_coordinates)):
+                    break
+                next_move_state=self.board[tuple(next_coordinates)]*self.active_player
+                if next_move_state==0:
+                    break
+                elif next_move_state==-1:
+                    #enemy piece there
                     enemy_pieces_in_this_direction.append(next_coordinates)
-                elif self.board[tuple(next_coordinates)]*self.active_player==1:
+                elif next_move_state==1:
                     pieces_to_flip.extend(enemy_pieces_in_this_direction)
+                    if early_stop and enemy_pieces_in_this_direction:
+                        return True
                     break
-                elif self.board[tuple(next_coordinates)]==0:
-                    break
-                next_coordinates=next_coordinates+direction
         return pieces_to_flip
 
     def is_legal_move(self, coordinates):
-        return self.pieces_to_flip_with_move_at(coordinates)
+        return self.pieces_to_flip_with_move_at(coordinates, early_stop=True)
 
 
     def list_legal_moves(self):
@@ -231,9 +240,9 @@ def history_to_legal_moves(move_log_tensor):
 
 
 
-if __name__=="__main__":
-    seed(0)
-    random_move_log=generate_random_game()
-    print(random_move_log)
-    print(move_log_to_string(random_move_log))
-    plot_back_move_log(random_move_log)
+# if __name__=="__main__":
+#     seed(0)
+#     random_move_log=generate_random_game()
+#     print(random_move_log)
+#     print(move_log_to_string(random_move_log))
+#     plot_back_move_log(random_move_log)
