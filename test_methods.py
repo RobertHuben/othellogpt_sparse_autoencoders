@@ -9,9 +9,9 @@ import pickle
 
 device='cuda' if torch.cuda.is_available() else 'cpu'
 
-def test_training(save=False):
+def test_small_training(save=False):
     model=othello_gpt.OthelloGPT(num_layers=2, d_model=32, n_heads=8, window_length=4)
-    train.train_othello_gpt_model(model, num_steps=1000, report_every_n_steps=500)
+    train.train_othello_gpt_model(model, num_steps=2000, report_every_n_steps=100)
     if save:
         with open("trained_model_test.pkl", 'wb') as f:
             pickle.dump(model, f)
@@ -20,7 +20,7 @@ def test_training(save=False):
 
 def full_scale_training(save=False):
     model=othello_gpt.OthelloGPT(num_layers=8, d_model=512, n_heads=8, window_length=64)
-    train.train_othello_gpt_model(model)
+    train.train_othello_gpt_model(model, batch_size=64, num_steps=100000, report_every_n_steps=500)
     if save:
         with open("trained_model_full.pkl", 'wb') as f:
             pickle.dump(model, f)
@@ -66,13 +66,13 @@ def full_sae_run(target_layer, save=True):
     return
 
 
-# test_training(save=True)
-# full_scale_training(save=True)
+# test_small_training(save=True)
+full_scale_training(save=True)
 # cProfile.run("test_training()")
 
 # test_unpickle()
 
-test_sae_training()
+# test_sae_training()
 
 # for n in range(1, 9):
 #     full_sae_run(target_layer=n)

@@ -45,9 +45,8 @@ def get_dataloder(mode, window_length, batch_size):
     dataloader=DataLoader(dataset, batch_size=batch_size, shuffle=True)
     return dataloader
 
-def train_othello_gpt_model(model, num_steps=10000, report_every_n_steps=500):
+def train_othello_gpt_model(model, batch_size=8, num_steps=10000, report_every_n_steps=500):
     torch.manual_seed(1337)
-    batch_size=8
     model.to(device)
     model.train()
 
