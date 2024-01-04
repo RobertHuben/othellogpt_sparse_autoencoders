@@ -29,13 +29,22 @@ if __name__=="__main__":
 
     # cProfile.run('generate_training_corpus(900, write_mode="a", to_write_location="datasets/othello_gpt_training_corpus.txt")')
 
-    for n in range(20):
-        start=time.time()
-        k=1000
-        generate_training_corpus(k, write_mode='a', to_write_location="datasets/othello_gpt_training_corpus.txt")
-        end=time.time()
-        print(f"Time for {k}: {end-start} seconds")
+    # for n in range(20):
+    #     start=time.time()
+    #     k=1000
+    #     generate_training_corpus(k, write_mode='a', to_write_location="datasets/othello_gpt_training_corpus.txt")
+    #     end=time.time()
+    #     print(f"Time for {k}: {end-start} seconds")
 
+
+    num_batches=90
+    batch_size=1000
+    write_location="datasets/sae_training_corpus.txt"
+    for n in range(num_batches):
+        start=time.time()
+        generate_training_corpus(batch_size, write_mode='a', to_write_location=write_location)
+        end=time.time()
+        print(f"Time for {batch_size}: {end-start} seconds")
     # for n in range(10):
     #     start=time.time()
     #     k=1000
