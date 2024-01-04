@@ -12,19 +12,18 @@ class SparseAutoencoder(nn.Module):
         self.hidden_layer_size=int(input_size*feature_ratio)
         if initialization_weights==None:
             initialization_weights=torch.normal(0, 1, (self.input_size, self.hidden_layer_size))
-        self.encoder=nn.Linear(self.input_size, self.hidden_layer_size)
-        self.encoder.weight=nn.Parameter(initialization_weights.transpose(0,1))
-        self.decoder=nn.Linear(self.hidden_layer_size, self.input_size, bias=False)
-        self.decoder.weight=nn.Parameter(initialization_weights)
+        self.encoder_decoder_matrix=nn.Parameter(initialization_weights)
+        self.encoder_bias=nn.Parameter(torch.normal(0,1, (self.hidden_layer_size,)))
         self.activation=torch.nn.ReLU()
 
 
     def forward(self, input):
-        hidden_layer=self.activation(self.encoder(input))
-        reconstruction=self.decoder(hidden_layer)
-        sparsity_loss=torch.norm(hidden_layer, p=1)
-        reconstruction_loss=torch.norm(input-reconstruction, p=2)
+        normalized_matrix=F.normalize(self.encoder_decoder_matrix, p=2, dim=1)
+        hidden_layer=self.activation(input@normalized_matrix + self.encoder_bias)
+        reconstruction=hidden_layer@normalized_matrix.transpose(0,1)
+        sparsity_loss=torch.norm(hidden_layer, p=1)/hidden_layer.numel()
+        reconstruction_loss=torch.norm(input-reconstruction, p=2)/input.numel()
         total_loss=reconstruction_loss+self.sparsity_coeff*sparsity_loss
-        return reconstruction, hidden_layer, total_loss
+        return reconstruction, hidden_layer, total_loss, reconstruction_loss, sparsity_loss
 
 
