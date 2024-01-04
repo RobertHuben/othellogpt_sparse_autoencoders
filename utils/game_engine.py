@@ -131,6 +131,13 @@ class OthelloGame:
         plt.title(f"Turn {len(self.turns_history)}")
 
 
+    def board_to_string(self):
+        representations_by_row=[]
+        for i, row in enumerate(self.board.transpose()):
+            this_row_representation=f"{' '.join([str(int(piece)) for piece in row])}"
+            representations_by_row.append(this_row_representation)
+        board_as_string=" ".join(representations_by_row)
+        return board_as_string
 
 def generate_random_game():
     '''
@@ -231,6 +238,15 @@ def history_to_legal_moves(move_log_tensor):
             valid_moves_by_turn.append(valid_moves_one_hot)
         valid_moves_by_game.append(valid_moves_by_turn)
     return torch.tensor(valid_moves_by_game)
+
+def history_to_board_states(game_log):
+    board_states_by_turn=[]
+    game=OthelloGame()
+    for move in game_log:
+        board_states_by_turn.append(game.board_to_string())
+        game.make_move(move)
+    board_states=";".join(board_states_by_turn)
+    return board_states
 
 
 
