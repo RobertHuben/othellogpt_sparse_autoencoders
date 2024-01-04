@@ -134,27 +134,35 @@ def evaluate_top_one_accuracy_by_turn(model, num_samples=80):
     return torch.stack(accuracies).mean(dim=0)
 
 
-# def train_sparse_autoencoder(sae_model, language_model, target_layer=1, num_steps=1000, report_every_n_steps=50):
-#     torch.manual_seed(1337)
-#     sae_model.to(device)
-#     language_model.to(device)
-#     sae_model.train()
+def train_sparse_autoencoder(sae_model, language_model, target_layer=1, sae_batch_size=64, num_steps=1000, report_every_n_steps=50):
+    torch.manual_seed(1337)
+    sae_model.to(device)
+    language_model.to(device)
+    sae_model.train()
 
-#     # freeze model weights
-#     for parameter in language_model.parameters():
-#         parameter.requires_grad=False
+    # freeze model weights
+    for parameter in language_model.parameters():
+        parameter.requires_grad=False
     
-#     print(f"Beginning to train a SAE on {device}!")
-#     optimizer=torch.optim.AdamW(sae_model.parameters(), lr=1e-3)
-#     steps_to_print_on=[report_every_n_steps*x for x in range(1, num_steps//report_every_n_steps)]+[num_steps-1]
-#     for step in range(num_steps):
-#         xb,_=get_batch("sae", block_size=1)
-#         xb =xb.to(device)
-#         model_activations=language_model.intermediate_residual_stream(xb, target_layer)
+    train_sae_dataloader=iter(get_dataloder(mode="sae_train", window_length=language_model.window_length, batch_size=sae_batch_size))
 
-#         reconstruction, hidden_layer, loss=sae_model(model_activations)
-#         optimizer.zero_grad(set_to_none=True)
-#         loss.backward()
-#         optimizer.step()
-#         if step in steps_to_print_on:
-#             print(f"Train loss after {step}/{num_steps} steps: {loss.item():.4f}")
+    print(f"Beginning to train a SAE for layer {target_layer} on {device}!")
+    optimizer=torch.optim.AdamW(sae_model.parameters(), lr=1e-3)
+    steps_to_print_on=[report_every_n_steps*x for x in range(1, num_steps//report_every_n_steps)]+[num_steps-1]
+    for step in range(num_steps):
+        try:
+            input_batch,label_batch = next(train_sae_dataloader)
+        except StopIteration:
+            # loops over epochs
+            train_sae_dataloader=iter(get_dataloder(mode="sae_train", window_length=language_model.window_length, batch_size=sae_batch_size))
+            input_batch,_ = next(train_sae_dataloader)
+        
+        model_hidden_layer=language_model.intermediate_residual_stream(input_batch, layer_num=target_layer)
+
+        reconstruction, hidden_layer, loss, reconstruction_loss, sparsity_loss=sae_model(model_hidden_layer)
+
+        loss.backward()
+        optimizer.step()
+        if step in steps_to_print_on:
+            sparsity_percent=(hidden_layer>0).sum()/hidden_layer.numel()
+            print(f"Total loss, rec loss, sparsity loss, sparsity percent after {step}/{num_steps} steps: {loss.item():.4f}, {reconstruction_loss.item():.4f}, {sparsity_loss.item():.4f}, {sparsity_percent.item():.4%}")
