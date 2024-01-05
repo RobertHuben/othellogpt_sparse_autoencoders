@@ -1,5 +1,6 @@
 import othello_gpt
 import autoencoder
+import linear_probes
 from utils.tokenizer import encode, decode
 import torch
 import train
@@ -19,8 +20,9 @@ def test_small_training(save=False):
 
 
 def full_scale_training(save=False):
+    num_epochs=2
     model=othello_gpt.OthelloGPT(num_layers=8, d_model=512, n_heads=8, window_length=64)
-    train.train_othello_gpt_model(model, batch_size=64, num_steps=100000, report_every_n_steps=500)
+    train.train_othello_gpt_model(model, batch_size=64, num_steps=num_epochs*10000, report_every_n_steps=500)
     if save:
         with open("trained_model_full.pkl", 'wb') as f:
             pickle.dump(model, f)
@@ -50,7 +52,7 @@ def test_sae_training(save=False):
     with open("trained_model_test.pkl", 'rb') as f:
         language_model=pickle.load(f)
 
-    sae_model=autoencoder.SparseAutoencoder(language_model.d_model, feature_ratio=2, sparsity_coeff=.1)
+    sae_model=autoencoder.SparseAutoencoder(language_model.d_model, feature_ratio=2, sparsity_coeff=.00086)
     train.train_sparse_autoencoder(sae_model, language_model, target_layer=1, num_steps=2000, report_every_n_steps=50)
     return
 
@@ -58,21 +60,44 @@ def full_sae_run(target_layer, save=True):
     with open("trained_model_full.pkl", 'rb') as f:
         language_model=pickle.load(f)
 
-    sae_model=autoencoder.SparseAutoencoder(language_model.d_model, feature_ratio=2, sparsity_coeff=.1)
-    train.train_sparse_autoencoder(sae_model, language_model, target_layer=target_layer, num_steps=4000, report_every_n_steps=100)
+    sae_model=autoencoder.SparseAutoencoder(language_model.d_model, feature_ratio=2, sparsity_coeff=.00086)
+    train.train_sparse_autoencoder(sae_model, language_model, sae_batch_size=64, target_layer=target_layer, num_steps=4000, report_every_n_steps=500)
     if save:
         with open(f"saes/sae_layer_{target_layer}.pkl", 'wb') as f:
             pickle.dump(sae_model, f)
     return
 
+def test_linear_probes(target_layer, save=True):
+    with open("trained_model_test.pkl", 'rb') as f:
+        language_model=pickle.load(f)
+
+    linear_probe_model=linear_probes.LinearProbe(language_model, layer_num=1)
+    train.train_linear_probe(linear_probe_model, probe_batch_size=64, num_steps=1000, report_every_n_steps=50)
+    if save:
+        with open(f"probes/probe_layer_{target_layer}.pkl", 'wb') as f:
+            pickle.dump(linear_probe_model, f)
+    return
+
+def test_linear_probes(target_layer, save=True):
+    with open("trained_model_full.pkl", 'rb') as f:
+        language_model=pickle.load(f)
+
+    linear_probe_model=linear_probes.LinearProbe(language_model, layer_num=1)
+    train.train_linear_probe(linear_probe_model, probe_batch_size=64, num_steps=10000, report_every_n_steps=500)
+    if save:
+        with open(f"probes/probe_layer_{target_layer}.pkl", 'wb') as f:
+            pickle.dump(linear_probe_model, f)
+    return
+
 
 # test_small_training(save=True)
-full_scale_training(save=True)
+# full_scale_training(save=True)
 # cProfile.run("test_training()")
 
 # test_unpickle()
 
 # test_sae_training()
 
+test_linear_probes(1)
 # for n in range(1, 9):
 #     full_sae_run(target_layer=n)

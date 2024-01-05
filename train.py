@@ -32,16 +32,59 @@ class OthelloDataset(Dataset):
         labels =extended_moves[1:]
         return inputs, labels
 
+class LabelledOthelloDataset(Dataset):
+    def __init__(self, file_location, window_length=64, device="cpu", use_ally_enemy=True):
+        super().__init__()
+        self.vocab=tokens_list()
+        self.reverse_vocab={text:num for num, text in enumerate(self.vocab)}
+        self.window_length=window_length
+        self.device=device
+        self.turn_mask=[(-1)**n for n in range(self.window_length)] if use_ally_enemy else [1 for n in range(self.window_length)]
+        with open(file_location,'r') as f:
+            self.games=f.read().split("\n")
+
+    def __len__(self):
+        return len(self.games)
+    
+    def __getitem__(self, index):
+        game=self.games[index]
+        game_moves, board_states=game.split("/")
+        board_states_by_turn=[[(int(pos)*tm)%3 for pos in turn_state.split(" ")] for tm, turn_state in zip(self.turn_mask,board_states.split(";"))]
+        extended_window_length=self.window_length+1
+        extended_moves=[self.reverse_vocab[move] for move in game_moves.split(" ")]
+        if len(extended_moves)>extended_window_length:
+            extended_moves=extended_moves[:extended_window_length]
+            board_states_by_turn=board_states_by_turn[:extended_window_length]
+        elif len(extended_moves)<extended_window_length:
+            extended_moves.extend([self.reverse_vocab["PP"] for _ in range(extended_window_length-len(extended_moves))])
+            board_states_by_turn.extend([[-100 for _ in range(64)] for __ in range(extended_window_length-len(board_states_by_turn))])
+        labels=torch.tensor(board_states_by_turn[:self.window_length], device=self.device)
+        extended_moves=torch.tensor(extended_moves, device=self.device)
+        inputs =extended_moves[:self.window_length]
+        return inputs, labels
 
 
-def get_dataloder(mode, window_length, batch_size):
+
+def get_dataloder(mode, window_length, batch_size, require_labels=False):
     if mode =="gpt_train":
         file_location="datasets/othello_gpt_training_corpus.txt"
+        dataset_type=OthelloDataset
     elif mode=="gpt_test":
         file_location="datasets/othello_gpt_test_corpus.txt"
+        dataset_type=OthelloDataset
     elif mode=="sae_train":
         file_location="datasets/sae_training_corpus.txt"
-    dataset=OthelloDataset(file_location, window_length=window_length, device=device)
+        dataset_type=OthelloDataset
+    elif mode=="probe_train":
+        file_location="datasets/probe_train_corpus.txt"
+        dataset_type=LabelledOthelloDataset
+    elif mode=="probe_train":
+        file_location="datasets/probe_test_corpus.txt"
+        dataset_type=LabelledOthelloDataset
+    elif mode=="probe_test":
+        file_location="datasets/board_state_classifier_test_corpus.txt"
+        dataset_type=LabelledOthelloDataset
+    dataset=dataset_type(file_location, window_length=window_length, device=device)
     dataloader=DataLoader(dataset, batch_size=batch_size, shuffle=True)
     return dataloader
 
@@ -166,3 +209,59 @@ def train_sparse_autoencoder(sae_model, language_model, target_layer=1, sae_batc
         if step in steps_to_print_on:
             sparsity_percent=(hidden_layer>0).sum()/hidden_layer.numel()
             print(f"Total loss, rec loss, sparsity loss, sparsity percent after {step}/{num_steps} steps: {loss.item():.4f}, {reconstruction_loss.item():.4f}, {sparsity_loss.item():.4f}, {sparsity_percent.item():.4%}")
+
+
+
+
+def train_linear_probe(linear_probe_model, probe_batch_size=64, num_steps=1000, report_every_n_steps=50):
+
+
+    torch.manual_seed(1337)
+    linear_probe_model.to(device)
+    linear_probe_model.othello_gpt_model.to(device)
+    linear_probe_model.train()
+    window_length=linear_probe_model.othello_gpt_model.window_length
+
+    # freeze model weights
+    for parameter in linear_probe_model.othello_gpt_model.parameters():
+        parameter.requires_grad=False
+    
+    train_probe_dataloader=iter(get_dataloder(mode="probe_train", window_length=window_length, batch_size=probe_batch_size))
+
+    print(f"Beginning to train a linear probe on layers {linear_probe_model.layer_num} on {device}!")
+    optimizer=torch.optim.AdamW(linear_probe_model.parameters(), lr=1e-3)
+    steps_to_print_on=[report_every_n_steps*x for x in range(1, num_steps//report_every_n_steps)]+[num_steps-1]
+    for step in range(num_steps):
+        try:
+            input_batch,label_batch = next(train_probe_dataloader)
+        except StopIteration:
+            # loops over epochs
+            train_probe_dataloader=iter(get_dataloder(mode="sae_train", window_length=window_length, batch_size=probe_batch_size))
+            input_batch,label_batch = next(train_probe_dataloader)
+        
+        predictions, loss=linear_probe_model(input_batch, label_batch)
+        loss.backward()
+        optimizer.step()
+        if step in steps_to_print_on:
+            accuracy=evaluate_top_one_board_state_accuracy(linear_probe_model)
+            print(f"Train loss and test accuracy after {step}/{num_steps} steps: {loss.item():.4f}, {accuracy:.4f}")
+
+def evaluate_top_one_board_state_accuracy(linear_probe_model, num_samples=80):
+    batch_size=8
+    batches=num_samples//batch_size
+    accuracies=[]
+
+    window_length=linear_probe_model.othello_gpt_model.window_length
+
+    test_probe_dataloader=iter(get_dataloder(mode="probe_test", window_length=window_length, batch_size=batch_size))
+
+    for n in range(batches):
+        input_batch,label_batch = next(test_probe_dataloader)
+        predictions, loss=linear_probe_model(input_batch)
+        one_hot_predictions=predictions.argmax(dim=3)
+
+        correct_predictions=(label_batch==one_hot_predictions).sum()
+        total_predictions=(label_batch>=0).sum()
+        accuracies.append(correct_predictions/total_predictions)
+
+    return float(torch.tensor(accuracies).mean())
