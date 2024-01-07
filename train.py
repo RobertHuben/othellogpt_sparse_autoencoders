@@ -213,7 +213,7 @@ def train_sparse_autoencoder(sae_model, language_model, target_layer=1, sae_batc
 
 
 
-def train_linear_probe(linear_probe_model, probe_batch_size=64, num_steps=1000, report_every_n_steps=50):
+def train_linear_probe(linear_probe_model, probe_batch_size=64, num_epochs=10, report_every_n_steps=50):
 
 
     torch.manual_seed(1337)
@@ -226,25 +226,22 @@ def train_linear_probe(linear_probe_model, probe_batch_size=64, num_steps=1000, 
     for parameter in linear_probe_model.othello_gpt_model.parameters():
         parameter.requires_grad=False
     
-    train_probe_dataloader=iter(get_dataloder(mode="probe_train", window_length=window_length, batch_size=probe_batch_size))
 
     print(f"Beginning to train a linear probe on layers {linear_probe_model.layer_num} on {device}!")
     optimizer=torch.optim.AdamW(linear_probe_model.parameters(), lr=1e-3)
-    steps_to_print_on=[report_every_n_steps*x for x in range(1, num_steps//report_every_n_steps)]+[num_steps-1]
-    for step in range(num_steps):
-        try:
-            input_batch,label_batch = next(train_probe_dataloader)
-        except StopIteration:
-            # loops over epochs
-            train_probe_dataloader=iter(get_dataloder(mode="sae_train", window_length=window_length, batch_size=probe_batch_size))
-            input_batch,label_batch = next(train_probe_dataloader)
-        
-        predictions, loss=linear_probe_model(input_batch, label_batch)
-        loss.backward()
-        optimizer.step()
-        if step in steps_to_print_on:
-            accuracy=evaluate_top_one_board_state_accuracy(linear_probe_model)
-            print(f"Train loss and test accuracy after {step}/{num_steps} steps: {loss.item():.4f}, {accuracy:.4f}")
+    steps_to_print_on=[report_every_n_steps*x for x in range(1, 1000)]
+    step=0
+    for epoch in range(num_epochs):
+        train_probe_dataloader=iter(get_dataloder(mode="probe_train", window_length=window_length, batch_size=probe_batch_size))
+        print(f"Starting training epoch {epoch+1}/{num_epochs}!")
+        for input_batch,label_batch in train_probe_dataloader:
+            step+=1
+            predictions, loss=linear_probe_model(input_batch, label_batch)
+            loss.backward()
+            optimizer.step()
+            if step in steps_to_print_on:
+                accuracy=evaluate_top_one_board_state_accuracy(linear_probe_model)
+                print(f"Train loss and test accuracy after {step} steps: {loss.item():.4f}, {accuracy:.4f}")
 
 def evaluate_top_one_board_state_accuracy(linear_probe_model, num_samples=80):
     batch_size=8

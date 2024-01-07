@@ -78,12 +78,12 @@ def test_linear_probes(target_layer, save=True):
             pickle.dump(linear_probe_model, f)
     return
 
-def test_linear_probes(target_layer, save=True):
+def full_probe_run(target_layer, save=True):
     with open("trained_model_full.pkl", 'rb') as f:
         language_model=pickle.load(f)
 
     linear_probe_model=linear_probes.LinearProbe(language_model, layer_num=1)
-    train.train_linear_probe(linear_probe_model, probe_batch_size=64, num_steps=10000, report_every_n_steps=500)
+    train.train_linear_probe(linear_probe_model, probe_batch_size=64, num_epochs=10, report_every_n_steps=500)
     if save:
         with open(f"probes/probe_layer_{target_layer}.pkl", 'wb') as f:
             pickle.dump(linear_probe_model, f)
@@ -98,6 +98,9 @@ def test_linear_probes(target_layer, save=True):
 
 # test_sae_training()
 
-test_linear_probes(1)
+# test_linear_probes(1)
 # for n in range(1, 9):
 #     full_sae_run(target_layer=n)
+
+for n in range(1, 9):
+    full_probe_run(target_layer=n)
