@@ -88,39 +88,39 @@ def get_dataloder(mode, window_length, batch_size, require_labels=False):
     dataloader=DataLoader(dataset, batch_size=batch_size, shuffle=True)
     return dataloader
 
-def train_othello_gpt_model(model, batch_size=8, num_steps=10000, report_every_n_steps=500):
+def train_othello_gpt_model(model, batch_size=8, num_epochs=2, report_every_n_steps=500):
     torch.manual_seed(1337)
     model.to(device)
     model.train()
 
     optimizer=torch.optim.AdamW(model.parameters(), lr=1e-3)
     train_dataloader=iter(get_dataloder(mode="gpt_train", window_length=model.window_length, batch_size=batch_size))
-    steps_to_print_on=[report_every_n_steps*x for x in range(1, num_steps//report_every_n_steps)]+[num_steps-1]
+    step=0
     print(f"Beginning model training on {device}!")
-    for step in range(num_steps):
-        try:
-            input_batch,label_batch = next(train_dataloader)
-        except StopIteration:
-            # loops over epochs
-            train_dataloader=iter(get_dataloder(mode="gpt_train", window_length=model.window_length, batch_size=batch_size))
-            input_batch,label_batch = next(train_dataloader)
-        logits, loss=model(input_batch, label_batch)
-        optimizer.zero_grad(set_to_none=True)
-        loss.backward()
-        optimizer.step()
-        if step in steps_to_print_on:
-            if step == steps_to_print_on[0]:
-                print("Beginning first evaluation, this may take some time to cache the results")
-            model.eval()
-            test_loss=evaluate_test_loss(model)
-            divergence=evaluate_kl_divergence(model)
-            accuracy=evaluate_top_one_accuracy(model)
-            if step == steps_to_print_on[-1]:
-                accuracy_by_turn=evaluate_top_one_accuracy_by_turn(model)
-                print(f"After training step {step}/{num_steps}, accuracy on turns 1, 2, 3, ...: {accuracy_by_turn}")
+    for epoch in range(num_epochs):
+        train_dataloader=iter(get_dataloder(mode="gpt_train", window_length=model.window_length, batch_size=batch_size))
+        print(f"Beginning epoch {epoch+1}/{num_epochs}. Epoch duration is {len(train_dataloader)} steps")
+        for input_batch,label_batch in train_dataloader:
+            step+=1
+            logits, loss=model(input_batch, label_batch)
+            optimizer.zero_grad(set_to_none=True)
+            loss.backward()
+            optimizer.step()
+            if step %report_every_n_steps==0:
+                give_othello_gpt_report(model, loss, step)
+    else:
+        give_othello_gpt_report(model, loss, step="Omega", details=True)
 
-            print(f"Train loss, test loss, divergence, accuracy after {step}/{num_steps} steps: {loss.item():.4f}, {test_loss.item():.4f}, {divergence:.4f}, {accuracy:.4f}")
-            model.train()
+def give_othello_gpt_report(model, loss, step, details=False):
+    model.eval()
+    test_loss=evaluate_test_loss(model)
+    divergence=evaluate_kl_divergence(model)
+    accuracy=evaluate_top_one_accuracy(model)
+    if details:
+        accuracy_by_turn=evaluate_top_one_accuracy_by_turn(model)
+        print(f"After training step {step}, accuracy on turns 1, 2, 3, ...: {accuracy_by_turn}")
+    print(f"Train loss, test loss, divergence, accuracy after {step} steps: {loss.item():.4f}, {test_loss.item():.4f}, {divergence:.4f}, {accuracy:.4f}")
+    model.train()
 
 @cache
 def get_data_and_legal_moves(window_length, num_samples, key=0):
@@ -214,8 +214,6 @@ def train_sparse_autoencoder(sae_model, language_model, target_layer=1, sae_batc
 
 
 def train_linear_probe(linear_probe_model, probe_batch_size=64, num_epochs=10, report_every_n_steps=50):
-
-
     torch.manual_seed(1337)
     linear_probe_model.to(device)
     linear_probe_model.othello_gpt_model.to(device)
@@ -244,16 +242,13 @@ def train_linear_probe(linear_probe_model, probe_batch_size=64, num_epochs=10, r
                 print(f"Train loss and test accuracy after {step} steps: {loss.item():.4f}, {accuracy:.4f}")
 
 def evaluate_top_one_board_state_accuracy(linear_probe_model, num_samples=80):
-    batch_size=8
-    batches=num_samples//batch_size
+    batch_size=1
     accuracies=[]
-
     window_length=linear_probe_model.othello_gpt_model.window_length
 
     test_probe_dataloader=iter(get_dataloder(mode="probe_test", window_length=window_length, batch_size=batch_size))
 
-    for n in range(batches):
-        input_batch,label_batch = next(test_probe_dataloader)
+    for input_batch,label_batch in test_probe_dataloader:
         predictions, loss=linear_probe_model(input_batch)
         one_hot_predictions=predictions.argmax(dim=3)
 
