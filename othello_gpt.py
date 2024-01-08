@@ -1,9 +1,8 @@
 import torch
 import torch.nn as nn
 from torch.nn import functional as F
-# from utils.tokenizer import encode, decode
 from utils.game_engine import tokens_list
-from utils.dataloaders import get_dataloader, get_data_and_legal_moves
+from utils.dataloaders import get_dataloader, get_othello_labels_and_legal_moves
 
 device='cuda' if torch.cuda.is_available() else 'cpu'
 
@@ -75,16 +74,18 @@ class OthelloGPT(nn.Module):
         logits=self.blocks[:layer_num](logits)
         return logits
     
-
-    def print_evaluation(self, train_loss, eval_dataset_type, step, details=False):
+    def print_evaluation(self, train_loss, eval_dataset_type, step_number="N/A", details=False):
+        '''
+        runs several evaluation methods on self, then prints the results and the train_loss
+        '''
         self.eval()
         test_loss=self.evaluate_test_loss(eval_dataset_type=eval_dataset_type)
         divergence=self.evaluate_kl_divergence(eval_dataset_type=eval_dataset_type)
         accuracy=self.evaluate_top_one_accuracy(eval_dataset_type=eval_dataset_type)
         if details:
             accuracy_by_turn=self.evaluate_top_one_accuracy_by_turn(eval_dataset_type=eval_dataset_type)
-            print(f"After training step {step}, accuracy on turns 1, 2, 3, ...: {accuracy_by_turn}")
-        print(f"Train loss, test loss, divergence, accuracy after {step} steps: {train_loss.item():.4f}, {test_loss.item():.4f}, {divergence:.4f}, {accuracy:.4f}")
+            print(f"After training step {step_number}, accuracy on turns 1, 2, 3, ...: {accuracy_by_turn}")
+        print(f"Train loss, test loss, divergence, accuracy after {step_number} steps: {train_loss.item():.4f}, {test_loss.item():.4f}, {divergence:.4f}, {accuracy:.4f}")
         self.train()
 
     def evaluate_test_loss(self, eval_dataset_type="gpt_test"):
@@ -98,7 +99,7 @@ class OthelloGPT(nn.Module):
         batches=num_samples//batch_size
         divergences=[]
         for n in range(batches):
-            xb, legal_moves=get_data_and_legal_moves(window_length=self.window_length, num_samples=batch_size, eval_dataset_type=eval_dataset_type,  key=n)
+            xb, legal_moves=get_othello_labels_and_legal_moves(window_length=self.window_length, num_samples=batch_size, eval_dataset_type=eval_dataset_type,  key=n)
             legal_move_distribution=legal_moves/legal_moves.sum(dim=-1, keepdim=True)
             logits, loss=self(xb, None)
             kl_loss=torch.nn.KLDivLoss(reduction='batchmean')
@@ -111,7 +112,7 @@ class OthelloGPT(nn.Module):
         batches=num_samples//batch_size
         accuracies=[]
         for n in range(batches):
-            xb, legal_moves=get_data_and_legal_moves(window_length=self.window_length, num_samples=batch_size, eval_dataset_type=eval_dataset_type,  key=n)
+            xb, legal_moves=get_othello_labels_and_legal_moves(window_length=self.window_length, num_samples=batch_size, eval_dataset_type=eval_dataset_type,  key=n)
             logits, loss=self(xb, None)
             largest_entry_locations=logits.argmax(dim=-1, keepdim=True)
             one_hot_predictions = torch.zeros(legal_moves.shape).to(device)
@@ -124,7 +125,7 @@ class OthelloGPT(nn.Module):
         batches=num_samples//batch_size
         accuracies=[]
         for n in range(batches):
-            xb, legal_moves=get_data_and_legal_moves(window_length=self.window_length, num_samples=batch_size, eval_dataset_type=eval_dataset_type,  key=n)
+            xb, legal_moves=get_othello_labels_and_legal_moves(window_length=self.window_length, num_samples=batch_size, eval_dataset_type=eval_dataset_type,  key=n)
             logits, loss=self(xb, None)
             largest_entry_locations=logits.argmax(dim=-1, keepdim=True)
             one_hot_predictions = torch.zeros(legal_moves.shape).to(device)

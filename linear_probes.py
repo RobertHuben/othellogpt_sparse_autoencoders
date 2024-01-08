@@ -1,7 +1,6 @@
 import torch
 import torch.nn as nn
 from torch.nn import functional as F
-# from utils.tokenizer import encode, decode
 from utils.dataloaders import get_dataloader
 
 class LinearProbe(torch.nn.Module):
@@ -29,10 +28,10 @@ class LinearProbe(torch.nn.Module):
             loss=loss_function(input=predictions.flatten(end_dim=-2), target=target.flatten())
         return predictions, loss
 
-    def print_evaluation(self, train_loss, eval_dataset_type, step, details=False):
+    def print_evaluation(self, train_loss, eval_dataset_type, step_number="N/A", details=False):
         del details
         accuracy=self.evaluate_top_one_board_state_accuracy(eval_dataset_type)
-        print(f"Train loss and test accuracy after {step} steps: {train_loss.item():.4f}, {accuracy:.4f}")
+        print(f"Train loss and test accuracy after {step_number} steps: {train_loss.item():.4f}, {accuracy:.4f}")
 
     def evaluate_top_one_board_state_accuracy(self, eval_dataset_type="probe_test", num_samples=80):
         batch_size=1
