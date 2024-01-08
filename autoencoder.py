@@ -15,6 +15,9 @@ class SparseAutoencoder(nn.Module):
         self.encoder_decoder_matrix=nn.Parameter(initialization_weights)
         self.encoder_bias=nn.Parameter(torch.normal(0,1, (self.hidden_layer_size,)))
         self.activation=torch.nn.ReLU()
+        # freeze othello gpt model weights
+        for parameter in self.othello_gpt_model.parameters():
+            parameter.requires_grad=False
 
 
     def forward(self, input):
