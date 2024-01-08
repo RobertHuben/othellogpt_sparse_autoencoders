@@ -75,27 +75,6 @@ def get_dataloader(mode, window_length, batch_size, require_labels=False):
         "probe_test":       ["datasets/probe_test_corpus.txt",                  LabelledOthelloDataset],
     }
     file_location, dataset_type=mode_lookups[mode]
-    # if mode =="gpt_train":
-    #     file_location="datasets/othello_gpt_training_corpus.txt"
-    #     dataset_type=OthelloDataset
-    # if mode =="gpt_train_small":
-    #     file_location="datasets/small_othello_gpt_training_corpus.txt"
-    #     dataset_type=OthelloDataset
-    # elif mode=="gpt_test":
-    #     file_location="datasets/othello_gpt_test_corpus.txt"
-    #     dataset_type=OthelloDataset
-    # elif mode=="sae_train":
-    #     file_location="datasets/sae_training_corpus.txt"
-    #     dataset_type=OthelloDataset
-    # elif mode=="probe_train":
-    #     file_location="datasets/probe_train_corpus.txt"
-    #     dataset_type=LabelledOthelloDataset
-    # elif mode=="probe_test":
-    #     file_location="datasets/probe_test_corpus.txt"
-    #     dataset_type=LabelledOthelloDataset
-    # # elif mode=="probe_test":
-    #     file_location="datasets/board_state_classifier_test_corpus.txt"
-    #     dataset_type=LabelledOthelloDataset
     dataset=dataset_type(file_location, window_length=window_length, device=device)
     dataloader=DataLoader(dataset, batch_size=batch_size, shuffle=True)
     return dataloader
