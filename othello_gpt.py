@@ -3,6 +3,9 @@ import torch.nn as nn
 from torch.nn import functional as F
 # from utils.tokenizer import encode, decode
 from utils.game_engine import tokens_list
+from utils.dataloaders import get_dataloader, get_data_and_legal_moves
+
+device='cuda' if torch.cuda.is_available() else 'cpu'
 
 class OthelloGPT(nn.Module):
 
@@ -71,6 +74,64 @@ class OthelloGPT(nn.Module):
         logits=self.token_embed_table(input)+self.position_embed_table(positions)
         logits=self.blocks[:layer_num](logits)
         return logits
+    
+
+    def print_evaluation(self, train_loss, eval_dataset_type, step, details=False):
+        self.eval()
+        test_loss=self.evaluate_test_loss(eval_dataset_type=eval_dataset_type)
+        divergence=self.evaluate_kl_divergence(eval_dataset_type=eval_dataset_type)
+        accuracy=self.evaluate_top_one_accuracy(eval_dataset_type=eval_dataset_type)
+        if details:
+            accuracy_by_turn=self.evaluate_top_one_accuracy_by_turn(eval_dataset_type=eval_dataset_type)
+            print(f"After training step {step}, accuracy on turns 1, 2, 3, ...: {accuracy_by_turn}")
+        print(f"Train loss, test loss, divergence, accuracy after {step} steps: {train_loss.item():.4f}, {test_loss.item():.4f}, {divergence:.4f}, {accuracy:.4f}")
+        self.train()
+
+    def evaluate_test_loss(self, eval_dataset_type="gpt_test"):
+        test_dataloader=iter(get_dataloader(eval_dataset_type, window_length=self.window_length, batch_size=1))
+        test_labels, test_input= next(test_dataloader)
+        logits, loss=self(test_labels, test_input)
+        return loss
+
+    def evaluate_kl_divergence(self, eval_dataset_type="gpt_test",  num_samples=80):
+        batch_size=1
+        batches=num_samples//batch_size
+        divergences=[]
+        for n in range(batches):
+            xb, legal_moves=get_data_and_legal_moves(window_length=self.window_length, num_samples=batch_size, eval_dataset_type=eval_dataset_type,  key=n)
+            legal_move_distribution=legal_moves/legal_moves.sum(dim=-1, keepdim=True)
+            logits, loss=self(xb, None)
+            kl_loss=torch.nn.KLDivLoss(reduction='batchmean')
+            log_softmax=torch.nn.LogSoftmax(dim=-1)
+            divergences.append(kl_loss(log_softmax(logits), legal_move_distribution))
+        return float(torch.tensor(divergences).mean())
+
+    def evaluate_top_one_accuracy(self, eval_dataset_type="gpt_test", num_samples=80):
+        batch_size=1
+        batches=num_samples//batch_size
+        accuracies=[]
+        for n in range(batches):
+            xb, legal_moves=get_data_and_legal_moves(window_length=self.window_length, num_samples=batch_size, eval_dataset_type=eval_dataset_type,  key=n)
+            logits, loss=self(xb, None)
+            largest_entry_locations=logits.argmax(dim=-1, keepdim=True)
+            one_hot_predictions = torch.zeros(legal_moves.shape).to(device)
+            one_hot_predictions = one_hot_predictions.scatter(dim=-1, index=largest_entry_locations, src=torch.ones(legal_moves.shape, device=device))
+            accuracies.append((legal_moves*one_hot_predictions).sum()/one_hot_predictions.sum())
+        return float(torch.tensor(accuracies).mean())
+
+    def evaluate_top_one_accuracy_by_turn(self, eval_dataset_type="gpt_test", num_samples=80):
+        batch_size=1
+        batches=num_samples//batch_size
+        accuracies=[]
+        for n in range(batches):
+            xb, legal_moves=get_data_and_legal_moves(window_length=self.window_length, num_samples=batch_size, eval_dataset_type=eval_dataset_type,  key=n)
+            logits, loss=self(xb, None)
+            largest_entry_locations=logits.argmax(dim=-1, keepdim=True)
+            one_hot_predictions = torch.zeros(legal_moves.shape).to(device)
+            one_hot_predictions = one_hot_predictions.scatter(dim=-1, index=largest_entry_locations, src=torch.ones(legal_moves.shape, device=device))
+            accuracies.append((legal_moves*one_hot_predictions).sum(dim=(0,2))/one_hot_predictions.sum(dim=(0,2)))
+        return torch.stack(accuracies).mean(dim=0)
+
     
 class MyAttentionHead(torch.nn.Module):
 
@@ -165,4 +226,5 @@ class LayerNorm(torch.nn.Module):
     def forward(self, x):
         std, mean=torch.std_mean(x, dim=-1, keepdim=True)
         return ((x-mean)/(std+self.eps))*self.gamma+self.beta
+
 

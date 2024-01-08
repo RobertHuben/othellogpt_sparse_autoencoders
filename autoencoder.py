@@ -2,11 +2,17 @@ import torch
 import torch.nn as nn
 from torch.nn import functional as F
 
+'''
+TO-DO: Significant rewriting, to use the othello_gpt_model, as in linear_probes
+'''
+
 
 class SparseAutoencoder(nn.Module):
 
-    def __init__(self, input_size, feature_ratio, sparsity_coeff=.1, initialization_weights=None):
+    def __init__(self, othello_gpt_model, layer_num, input_size, feature_ratio, sparsity_coeff=.1, initialization_weights=None):
         super().__init__()
+        self.othello_gpt_model=othello_gpt_model
+        self.layer_num=layer_num
         self.input_size=input_size
         self.sparsity_coeff=sparsity_coeff
         self.hidden_layer_size=int(input_size*feature_ratio)
@@ -20,7 +26,8 @@ class SparseAutoencoder(nn.Module):
             parameter.requires_grad=False
 
 
-    def forward(self, input):
+    def forward(self, input, labels):
+        del labels # we're trained on unlabeled, but want a second argument to match other methods
         normalized_matrix=F.normalize(self.encoder_decoder_matrix, p=2, dim=1)
         hidden_layer=self.activation(input@normalized_matrix + self.encoder_bias)
         reconstruction=hidden_layer@normalized_matrix.transpose(0,1)
