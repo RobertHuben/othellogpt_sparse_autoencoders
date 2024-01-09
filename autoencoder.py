@@ -3,9 +3,7 @@ import torch.nn as nn
 from torch.nn import functional as F
 from utils.dataloaders import get_dataloader
 
-'''
-TO-DO: Significant rewriting, to use the othello_gpt_model, as in linear_probes
-'''
+device='cuda' if torch.cuda.is_available() else 'cpu'
 
 
 class SparseAutoencoder(nn.Module):
@@ -42,13 +40,13 @@ class SparseAutoencoder(nn.Module):
     
     def print_evaluation(self, train_loss, eval_dataset_type, step_number="N/A", details=False):
         del details
-        test_loss, sparsity_percent = self.evaluate_test_losses_and_sparsity(eval_dataset_type)
-        print(f"Train loss, test loss, and test sparsity percent after {step_number} steps: {train_loss.item():.4f}, {test_loss.item():.4f}, {sparsity_percent:.4%}")
+        test_loss, percent_active = self.evaluate_test_losses_and_sparsity(eval_dataset_type)
+        print(f"Train loss, test loss, and test features active percent after {step_number} steps: {train_loss.item():.4f}, {test_loss.item():.4f}, {percent_active:.4%}")
 
     def evaluate_test_losses_and_sparsity(self, eval_dataset_type):
 
         test_dataloader=iter(get_dataloader(eval_dataset_type, window_length=self.window_length, batch_size=8))
-        total_test_loss=torch.zeros((1), requires_grad=False)
+        total_test_loss=torch.zeros((1), requires_grad=False, device=device)
         total_active_features=0
         for test_input, test_labels in test_dataloader:
             del test_labels
