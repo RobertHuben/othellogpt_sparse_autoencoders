@@ -70,7 +70,7 @@ class OthelloGPT(nn.Module):
         positions=torch.arange(input.shape[1])
         if input.get_device()>=0:
             positions=positions.to(input.get_device())
-        logits=self.token_embed_table(input)+self.position_embed_table(positions)
+        logits=self.token_embed_table(input)+self.position_embed_table(positions) #B-W-d_model
         logits=self.blocks[:layer_num](logits)
         return logits
     
