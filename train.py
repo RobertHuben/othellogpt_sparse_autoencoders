@@ -22,7 +22,7 @@ def train_model(model, train_dataset_type, eval_dataset_type, batch_size=64, num
         for input_batch,label_batch in tqdm(train_dataloader):
             step+=1
             optimizer.zero_grad(set_to_none=True)
-            logits, loss=model(input_batch, label_batch)
+            output, loss=model(input_batch, label_batch)
             loss.backward()
             optimizer.step()
             if step %report_every_n_steps==0:
