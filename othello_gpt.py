@@ -62,7 +62,7 @@ class OthelloGPT(nn.Module):
             input=torch.concatenate((input, idx_next), dim=1)
         return input
     
-    def intermediate_residual_stream(self, input, layer_num):
+    def intermediate_residual_stream(self, input, layer_num, require_grad=False):
         # returns the state of the residual stream after applying the first layer_num transformer blocks
         # so layer_num=0 is the initial stream, 1 is after the the first block, etc
         if input.shape[1]>self.window_length:
@@ -72,6 +72,7 @@ class OthelloGPT(nn.Module):
             positions=positions.to(input.get_device())
         logits=self.token_embed_table(input)+self.position_embed_table(positions) #B-W-d_model
         logits=self.blocks[:layer_num](logits)
+        logits.requires_grad=require_grad
         return logits
     
     def print_evaluation(self, train_loss, eval_dataset_type, step_number="N/A", details=False):
