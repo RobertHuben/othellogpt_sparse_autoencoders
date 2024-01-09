@@ -2,6 +2,7 @@ import othello_gpt
 import autoencoder
 import linear_probes
 from utils.tokenizer import encode, decode
+from utils.save_residual_streams import save_residual_stream_from_dataloader
 import torch
 from train import train_model
 import cProfile
@@ -118,6 +119,13 @@ def full_probe_run(target_layer, save=True):
         with open(to_save_location, 'wb') as f:
             torch.save(linear_probe_model, f)
 
+def save_full_residual_stream(use_test=False):
+    trained_model_location="trained_model_full.pkl"
+    with open(trained_model_location, 'rb') as f:
+        language_model=torch.load(f, map_location=device)
+    dataloader_mode="probe_test" if use_test else "probe_train"
+    save_file_name="full_model_test" if use_test else "full_model_train"
+    save_residual_stream_from_dataloader(dataloader_mode, language_model, 6, f"saved_activations/{save_file_name}.pkl")
 
 # test_small_training(save=True)
 # full_scale_training(save=True)
@@ -130,4 +138,8 @@ def full_probe_run(target_layer, save=True):
 # test_linear_probes(4)
 # for n in range(1, 9):
 #     full_probe_run(target_layer=n)
-full_probe_run(target_layer=6)
+# full_probe_run(target_layer=6)
+
+save_full_residual_stream(True)
+save_full_residual_stream(False)
+
