@@ -80,20 +80,21 @@ class LabelledOthelloDataset(Dataset):
 
 def recognized_dataset():
     mode_lookups={
-        "gpt_train":        ["datasets/othello_gpt_training_corpus.txt",        OthelloDataset],
-        "gpt_train_small":  ["datasets/small_othello_gpt_training_corpus.txt",  OthelloDataset],
-        "gpt_test":         ["datasets/othello_gpt_test_corpus.txt",            OthelloDataset],
-        "sae_train":        ["datasets/sae_training_corpus.txt",                OthelloDataset],
-        "probe_train":      ["datasets/probe_train_corpus.txt",                 LabelledOthelloDataset],
-        "probe_train_small":["datasets/small_probe_training_corpus.txt",        LabelledOthelloDataset],
-        "probe_test":       ["datasets/probe_test_corpus.txt",                  LabelledOthelloDataset],
+        "gpt_train":        ["datasets/othello_gpt_training_corpus.txt",        OthelloDataset,         {}],
+        "gpt_train_small":  ["datasets/small_othello_gpt_training_corpus.txt",  OthelloDataset,         {}],
+        "gpt_test":         ["datasets/othello_gpt_test_corpus.txt",            OthelloDataset,         {}],
+        "sae_train":        ["datasets/sae_training_corpus.txt",                OthelloDataset,         {}],
+        "probe_train":      ["datasets/probe_train_corpus.txt",                 LabelledOthelloDataset, {}],
+        "probe_train_bw":   ["datasets/probe_train_corpus.txt",                 LabelledOthelloDataset, {"use_ally_enemy":False}],
+        "probe_train_small":["datasets/small_probe_training_corpus.txt",        LabelledOthelloDataset, {}],
+        "probe_test":       ["datasets/probe_test_corpus.txt",                  LabelledOthelloDataset, {}],
     }
     return mode_lookups
 
 def get_dataloader(mode, window_length, batch_size):
     mode_lookups=recognized_dataset()
-    file_location, dataset_type=mode_lookups[mode]
-    dataset=dataset_type(file_location, window_length=window_length, device=device)
+    file_location, dataset_type, kwargs=mode_lookups[mode]
+    dataset=dataset_type(file_location, window_length=window_length, device=device, **kwargs)
     dataloader=DataLoader(dataset, batch_size=batch_size, shuffle=True)
     return dataloader
 
