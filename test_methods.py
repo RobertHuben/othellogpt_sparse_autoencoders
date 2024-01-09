@@ -66,24 +66,44 @@ def test_unpickle():
     print(x)
 
 
-# def test_sae_training(save=False):
-#     with open("trained_model_test.pkl", 'rb') as f:
-#         language_model=torch.load(f)
+def test_sae_training(target_layer, save=False):
+    trained_model_location="trained_model_test.pkl"
+    with open(trained_model_location, 'rb') as f:
+        language_model=torch.load(f, map_location=device)
+    num_epochs=1
+    report_every_n_steps=5
+    batch_size=8
+    train_corpus="sae_train"
+    eval_corpus="probe_test"
+    feature_ratio=2
+    sparsity_coeff=1e-3
+    sparse_autoencoder=autoencoder.SparseAutoencoder(language_model, layer_num=target_layer, feature_ratio=feature_ratio, sparsity_coeff=sparsity_coeff)
+    train_model(sparse_autoencoder, train_dataset_type=train_corpus, eval_dataset_type=eval_corpus, num_epochs=num_epochs, report_every_n_steps=report_every_n_steps, batch_size=batch_size)
+    
+    if save:
+        to_save_location=f"saes/sae_layer_{target_layer}.pkl"
+        with open(to_save_location, 'wb') as f:
+            torch.save(sparse_autoencoder, f)
 
-#     sae_model=autoencoder.SparseAutoencoder(language_model.d_model, feature_ratio=2, sparsity_coeff=.00086)
-#     train.train_sparse_autoencoder(sae_model, language_model, target_layer=1, num_steps=2000, report_every_n_steps=50)
-#     return
+def full_sae_training(target_layer, save=False):
+    trained_model_location="trained_model_full.pkl"
+    with open(trained_model_location, 'rb') as f:
+        language_model=torch.load(f, map_location=device)
+    num_epochs=1
+    report_every_n_steps=500
+    batch_size=64
+    train_corpus="sae_train"
+    eval_corpus="probe_test"
+    feature_ratio=2
+    sparsity_coeff=1e-3
+    sparse_autoencoder=autoencoder.SparseAutoencoder(language_model, layer_num=target_layer, feature_ratio=feature_ratio, sparsity_coeff=sparsity_coeff)
+    train_model(sparse_autoencoder, train_dataset_type=train_corpus, eval_dataset_type=eval_corpus, num_epochs=num_epochs, report_every_n_steps=report_every_n_steps, batch_size=batch_size)
+    
+    if save:
+        to_save_location=f"saes/sae_layer_{target_layer}.pkl"
+        with open(to_save_location, 'wb') as f:
+            torch.save(sparse_autoencoder, f)
 
-# def full_sae_run(target_layer, save=True):
-#     with open("trained_model_full.pkl", 'rb') as f:
-#         language_model=torch.load(f)
-
-#     sae_model=autoencoder.SparseAutoencoder(language_model.d_model, feature_ratio=2, sparsity_coeff=.00086)
-#     train.train_sparse_autoencoder(sae_model, language_model, sae_batch_size=64, target_layer=target_layer, num_steps=4000, report_every_n_steps=500)
-#     if save:
-#         with open(f"saes/sae_layer_{target_layer}.pkl", 'wb') as f:
-#             torch.save(sae_model, f)
-#     return
 
 def test_linear_probes(target_layer, save=True):
     trained_model_location="trained_model_test.pkl"
@@ -94,7 +114,9 @@ def test_linear_probes(target_layer, save=True):
     batch_size=64
     train_corpus="probe_train_small"
     eval_corpus="probe_test"
-    linear_probe_model=linear_probes.LinearProbe(language_model, layer_num=target_layer)
+    window_start=1
+    window_end=1
+    linear_probe_model=linear_probes.LinearProbe(language_model, layer_num=target_layer, window_start_trim=window_start, window_end_trim=window_end)
     train_model(linear_probe_model, train_dataset_type=train_corpus, eval_dataset_type=eval_corpus, num_epochs=num_epochs, report_every_n_steps=report_every_n_steps, batch_size=batch_size)
     
     if save:
@@ -111,7 +133,9 @@ def full_probe_run(target_layer, save=True):
     batch_size=64
     train_corpus="probe_train"
     eval_corpus="probe_test"
-    linear_probe_model=linear_probes.LinearProbe(language_model, layer_num=target_layer)
+    window_start=4
+    window_end=8
+    linear_probe_model=linear_probes.LinearProbe(language_model, layer_num=target_layer, window_start_trim=window_start, window_end_trim=window_end)
     train_model(linear_probe_model, train_dataset_type=train_corpus, eval_dataset_type=eval_corpus, num_epochs=num_epochs, report_every_n_steps=report_every_n_steps, batch_size=batch_size)
     
     if save:
@@ -134,10 +158,11 @@ def full_probe_run(target_layer, save=True):
 
 # test_unpickle()
 
-# test_sae_training()
+# test_sae_training(target_layer=6)
+full_sae_training(target_layer=6)
 
-# test_linear_probes(4)
+# test_linear_probes(6)
 # for n in range(1, 9):
 #     full_probe_run(target_layer=n)
-full_probe_run(target_layer=6)
+# full_probe_run(target_layer=6)
 
