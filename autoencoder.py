@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 from torch.nn import functional as F
 from utils.dataloaders import get_dataloader
+from tqdm import tqdm
 
 device='cuda' if torch.cuda.is_available() else 'cpu'
 
@@ -21,6 +22,8 @@ class SparseAutoencoder(nn.Module):
         self.encoder_bias=nn.Parameter(torch.normal(0,1, (self.hidden_layer_size,)))
         self.activation=nn.ReLU()
         self.layernorm=nn.LayerNorm((self.othello_gpt_model.d_model))
+        for parameter in self.layernorm.parameters():
+            parameter.requires_grad=False
         # freeze othello gpt model weights
         for parameter in self.othello_gpt_model.parameters():
             parameter.requires_grad=False
@@ -36,12 +39,13 @@ class SparseAutoencoder(nn.Module):
         sparsity_loss=torch.norm(hidden_layer, p=1, dim=-1).sum()/hidden_layer.numel()
         reconstruction_loss=torch.norm(normalized_logits-reconstruction, p=2, dim=-1).sum()/input.numel()
         total_loss=reconstruction_loss+self.sparsity_coeff*sparsity_loss
-        return (reconstruction,hidden_layer,reconstruction_loss, sparsity_loss), total_loss
+        return (reconstruction,hidden_layer,reconstruction_loss, sparsity_loss, logits), total_loss
     
     def print_evaluation(self, train_loss, eval_dataset_type, step_number="N/A", details=False):
         del details
         test_loss, percent_active = self.evaluate_test_losses_and_sparsity(eval_dataset_type)
-        print(f"Train loss, test loss, and test features active percent after {step_number} steps: {train_loss.item():.4f}, {test_loss.item():.4f}, {percent_active:.4%}")
+        fraction_variance_unexplained= self.evaluate_variance_unexplaiend(eval_dataset_type)
+        tqdm.write(f"Train loss, test loss, test features active, and test FVU, percent after {step_number} steps: {train_loss.item():.4f}, {test_loss.item():.4f}, {percent_active:.4%}, {fraction_variance_unexplained:.4%}")
 
     def evaluate_test_losses_and_sparsity(self, eval_dataset_type):
 
@@ -50,11 +54,27 @@ class SparseAutoencoder(nn.Module):
         total_active_features=0
         for test_input, test_labels in test_dataloader:
             del test_labels
-            (reconstruction,hidden_layer,reconstruction_loss, sparsity_loss), total_loss=self(test_input, None)
+            (reconstruction,hidden_layer,reconstruction_loss, sparsity_loss, logits), total_loss=self(test_input, None)
             total_active_features+=(hidden_layer>0).sum()
             total_test_loss+=total_loss
         
         return total_test_loss/len(test_dataloader), total_active_features/(len(test_dataloader)*hidden_layer.numel())
+
+    def evaluate_variance_unexplaiend(self, eval_dataset_type):
+        test_dataloader=iter(get_dataloader(eval_dataset_type, window_length=self.window_length, batch_size=8))
+        all_logits=[]
+        all_errors=[]
+        for test_input, test_labels in test_dataloader:
+            del test_labels
+            (reconstruction,hidden_layer,reconstruction_loss, sparsity_loss, logits), total_loss=self(test_input, None)
+            all_logits.append(logits)
+            all_errors.append(logits-reconstruction)
+        all_logits=torch.concat(all_logits, dim=0).flatten(end_dim=-2)
+        all_errors=torch.concat(all_errors, dim=0).flatten(end_dim=-2)
+        input_variance=torch.var(all_logits, dim=0).sum()
+        error_variance=torch.var(all_errors, dim=0).sum()
+        fraction_variance_unexplained=error_variance/input_variance
+        return fraction_variance_unexplained
 
 
 
