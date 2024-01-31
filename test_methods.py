@@ -77,9 +77,12 @@ def test_sae_training(target_layer, save=False):
     eval_corpus="probe_test"
     feature_ratio=2
     sparsity_coeff=1e-3
-    sparse_autoencoder=autoencoder.SparseAutoencoder(language_model, layer_num=target_layer, feature_ratio=feature_ratio, sparsity_coeff=sparsity_coeff)
+    window_start=1
+    window_end=1
+
+    sparse_autoencoder=autoencoder.SparseAutoencoder(language_model, layer_num=target_layer, feature_ratio=feature_ratio, sparsity_coeff=sparsity_coeff, window_start_trim=window_start, window_end_trim=window_end)
     train_model(sparse_autoencoder, train_dataset_type=train_corpus, eval_dataset_type=eval_corpus, num_epochs=num_epochs, report_every_n_steps=report_every_n_steps, batch_size=batch_size)
-    
+
     if save:
         to_save_location=f"saes/sae_layer_{target_layer}.pkl"
         with open(to_save_location, 'wb') as f:
@@ -89,20 +92,44 @@ def full_sae_training(target_layer, save=False):
     trained_model_location="trained_model_full.pkl"
     with open(trained_model_location, 'rb') as f:
         language_model=torch.load(f, map_location=device)
-    num_epochs=1
+    num_epochs=4
     report_every_n_steps=500
     batch_size=64
     train_corpus="sae_train"
     eval_corpus="probe_test"
     feature_ratio=2
-    sparsity_coeff=1e-3
-    sparse_autoencoder=autoencoder.SparseAutoencoder(language_model, layer_num=target_layer, feature_ratio=feature_ratio, sparsity_coeff=sparsity_coeff)
+    sparsity_coeff=1e-1
+    window_start=4
+    window_end=8
+
+    sparse_autoencoder=autoencoder.SparseAutoencoder(language_model, layer_num=target_layer, feature_ratio=feature_ratio, sparsity_coeff=sparsity_coeff, window_start_trim=window_start, window_end_trim=window_end)
     train_model(sparse_autoencoder, train_dataset_type=train_corpus, eval_dataset_type=eval_corpus, num_epochs=num_epochs, report_every_n_steps=report_every_n_steps, batch_size=batch_size)
     
     if save:
         to_save_location=f"saes/sae_layer_{target_layer}.pkl"
         with open(to_save_location, 'wb') as f:
             torch.save(sparse_autoencoder, f)
+
+def sae_hyperparameter_sweep(target_layer):
+    trained_model_location="trained_model_full.pkl"
+    with open(trained_model_location, 'rb') as f:
+        language_model=torch.load(f, map_location=device)
+    num_epochs=1
+    report_every_n_steps=320
+    batch_size=64
+    train_corpus="sae_train"
+    eval_corpus="probe_test"
+    feature_ratio=2
+    window_start=4
+    window_end=8
+    
+    for sparsity_coeff in [1e-3 *(2**n) for n in range(20)]:
+
+        sparse_autoencoder=autoencoder.SparseAutoencoder(language_model, layer_num=target_layer, feature_ratio=feature_ratio, sparsity_coeff=sparsity_coeff, window_start_trim=window_start, window_end_trim=window_end)
+        sparse_autoencoder.write_updates_to="hyperparameter_results.txt"
+        with open(sparse_autoencoder.write_updates_to, 'a') as f:
+            f.write(f"Training autoencoder with sparsity coefficient {sparsity_coeff}\n")
+        train_model(sparse_autoencoder, train_dataset_type=train_corpus, eval_dataset_type=eval_corpus, num_epochs=num_epochs, report_every_n_steps=report_every_n_steps, batch_size=batch_size)
 
 
 def test_linear_probes(target_layer, save=True):
@@ -158,8 +185,9 @@ def full_probe_run(target_layer, save=True):
 
 # test_unpickle()
 
-# test_sae_training(target_layer=6)
-full_sae_training(target_layer=6)
+test_sae_training(target_layer=6)
+# sae_hyperparameter_sweep(6)
+# full_sae_training(target_layer=6, save=True)
 
 # test_linear_probes(6)
 # for n in range(1, 9):
