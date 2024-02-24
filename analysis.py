@@ -340,11 +340,6 @@ def combine(legal_moves, board):
 # def combine(legal_moves, board):
 #     return (board.reshape(8,8).transpose(0,1)+10*legal_moves.reshape((8,8)))
 
-# def save_feature_activations():
-#     with open("saes/sae_layer_6_trimmed_alpha_77_e-3.pkl", 'rb') as f:
-#         sae=torch.load(f, map_location=device)
-#     sae.save_state_on_dataset()
-
 # def compare_stuff():
 #     with open("analysis_results/all_activations.pkl", 'rb') as f:
 #         all_activations=torch.load(f)
