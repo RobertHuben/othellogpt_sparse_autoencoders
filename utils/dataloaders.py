@@ -116,6 +116,6 @@ def get_othello_labels_and_legal_moves(window_length, num_samples, eval_dataset_
     test_dataloader=iter(get_dataloader(eval_dataset_type, window_length=window_length, batch_size=num_samples))
     test_labels, test_input= next(test_dataloader)
     test_labels=test_labels.to("cpu")
-    legal_moves=history_to_legal_moves(test_labels)
+    legal_moves=history_to_legal_moves(test_labels, trim_to_length_64=False)
     test_labels, legal_moves=test_labels.to(device), legal_moves.to(device)
     return test_labels, legal_moves
