@@ -264,5 +264,3 @@ def history_to_board_states(game_log):
 #     print(random_move_log)
 #     print(move_log_to_string(random_move_log))
 #     plot_back_move_log(random_move_log)
-
-print(coordinates_to_string(int_to_coordinates(5)))
