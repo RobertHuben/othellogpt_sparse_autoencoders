@@ -3,7 +3,6 @@ import torch.nn as nn
 from torch.nn import functional as F
 from utils.dataloaders import get_dataloader
 from tqdm import tqdm
-from torcheval.metrics import BinaryAUROC
 
 device='cuda' if torch.cuda.is_available() else 'cpu'
 
@@ -38,7 +37,7 @@ class SparseAutoencoder(nn.Module):
     def forward(self, input, labels):
         del labels # we're trained on unlabeled, but want a second argument to match other methods
         logits=self.othello_gpt_model.intermediate_residual_stream(input, layer_num=self.layer_num) #run the model
-        trimmed_logits=logits[:, self.window_start_trim:(self.window_length-self.window_end_trim), :]
+        trimmed_logits=self.trim_to_window(logits)
         if self.normalize_inputs:
             trimmed_logits=self.layernorm(trimmed_logits) #layernorm regularizes the input to self
         normalized_encoder_decoder_matrix=F.normalize(self.encoder_decoder_matrix, p=2, dim=1) #need to L2 regularize the matrix
@@ -56,11 +55,15 @@ class SparseAutoencoder(nn.Module):
         percent_active=self.evaluate_sparsity(hidden_layers)
         percent_dead_neurons=self.evaluate_dead_neurons(hidden_layers)
         fraction_variance_unexplained=self.evaluate_variance_unexplaiend(reconstructions, input_layers)
-        tqdm.write(f"Train loss and test (loss, features active, features dead, and unexplained variance) after {step_number} steps: {train_loss.item():.4f}, {test_loss:.4f}, {percent_active:.4%}, {percent_dead_neurons:.4%} {fraction_variance_unexplained:.4%}")
+        print_message=f"Train loss and test (loss, features active, features dead, and unexplained variance) after {step_number} steps: {train_loss.item():.4f}, {test_loss:.4f}, {percent_active:.4%}, {percent_dead_neurons:.4%}, {fraction_variance_unexplained:.4%}"
+        tqdm.write(print_message)
         if self.write_updates_to:
             with open(self.write_updates_to, 'a') as f:
-                f.write(f"Train loss, test loss, test features active, and test FVU percent after {step_number} steps: {train_loss.item():.4f}, {test_loss.item():.4f}, {percent_active:.4%}, {fraction_variance_unexplained:.4%}\n")
+                f.write(print_message + "\n")
 
+    def trim_to_window(self, x):
+        return x[:, self.window_start_trim:(self.window_length-self.window_end_trim), :]
+    
     def catenate_outputs_on_test_set(self, eval_dataset_type):
         test_dataloader=iter(get_dataloader(eval_dataset_type, window_length=self.window_length, batch_size=8))
         reconstructions=[]
@@ -101,39 +104,22 @@ class SparseAutoencoder(nn.Module):
         fraction_variance_unexplained=error_variance/input_variance
         return fraction_variance_unexplained
 
-    def evaluate_features_as_classifiers(self, eval_dataset_type):
-        test_dataloader=iter(get_dataloader(eval_dataset_type, window_length=self.window_length, batch_size=10))
-        activations=[]
+    def save_state_on_dataset(self, eval_dataset_type="probe_test", activations_save_location="analysis_results/feature_activations.pkl", boards_save_location="analysis_results/features_all_boards.pkl"):
+        batch_size=10
+        window_length=self.window_length
+        test_probe_dataloader=iter(get_dataloader(mode=eval_dataset_type, window_length=window_length, batch_size=batch_size))
+        feature_activations=[]
         boards=[]
-        for test_input, test_labels in tqdm(test_dataloader):
-            (reconstruction,hidden_layer,reconstruction_loss, sparsity_loss, normalized_logits), total_loss=self(test_input, None)
-            activations.append(hidden_layer)
-            boards.append(test_labels)
-        all_activations=torch.cat(activations).flatten(end_dim=-2)
-        all_boards=torch.cat(boards).flatten(end_dim=-2)
-        f1_scores=torch.zeros((all_activations.shape[1], all_boards.shape[1], 3))
-        aurocs=torch.zeros((all_activations.shape[1], all_boards.shape[1], 3))
-        for i, feature_activation in tqdm(enumerate(all_activations.transpose(0,1))):
-            for j, board_position in enumerate(all_boards.transpose(0,1)):
-                for k, piece_class in enumerate([0,1,2]):
-                    is_feature_active=feature_activation>0
-                    is_target_piece=board_position==piece_class
-                    ended_game_mask= board_position>-100
-                    tp=(is_feature_active*is_target_piece* ended_game_mask).sum()
-                    fp=(is_feature_active* ~is_target_piece* ended_game_mask).sum()
-                    tn=(~is_feature_active* ~is_target_piece* ended_game_mask).sum()
-                    fn=(~is_feature_active*is_target_piece* ended_game_mask).sum()
-                    f1_score=calculate_f1_score(tp, fp, tn, fn)
-                    f1_scores[i,j,k]=float(f1_score)
-                    metric = BinaryAUROC()
-                    metric.update(feature_activation[ended_game_mask], is_target_piece[ended_game_mask].int())
-                    aurocs[i,j,k]=float(metric.compute())
-                    # print(f"F1 Score: {f1_score:.4f}")
-        with open("analysis_results/aurocs.pkl", 'wb') as f:
-            torch.save(aurocs, f)
-        with open("analysis_results/f1_scores.pkl", 'wb') as f:
-            torch.save(f1_scores, f)
-        return
+        for input_batch,label_batch in test_probe_dataloader:
+            (reconstruction,hidden_layer,reconstruction_loss, sparsity_loss, trimmed_logits), total_loss= self(input_batch, None)
+            feature_activations.append(hidden_layer)
+            boards.append(self.trim_to_window(label_batch))
+        feature_activations=torch.cat(feature_activations).flatten(0,1)
+        boards=torch.cat(boards).flatten(0,1)
+        with open(activations_save_location, 'wb') as f:
+            torch.save(feature_activations, f)
+        with open(boards_save_location, 'wb') as f:
+            torch.save(boards, f)
 
     
 
