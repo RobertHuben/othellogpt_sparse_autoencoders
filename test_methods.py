@@ -183,10 +183,10 @@ full_scale_training(save=True)
 
 # test_sae_training(target_layer=6)
 # sae_hyperparameter_sweep(6)
+full_probe_run(target_layer=6)
 full_sae_training(target_layer=6, save=True)
 
 # test_linear_probes(6)
 # for n in range(1, 9):
 #     full_probe_run(target_layer=n)
-# full_probe_run(target_layer=6)
 
