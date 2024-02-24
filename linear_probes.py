@@ -25,7 +25,7 @@ class LinearProbe(torch.nn.Module):
         logits=self.othello_gpt_model.intermediate_residual_stream(input, self.layer_num) #B-W-d_model
         logits=self.trim_to_window(logits) #B-w-d_model, where w is the length of the shrunk window
         normalized_logits=self.layer_norm(logits)
-        predictions=torch.stack([classifier_shard(normalized_logits) for classifier_shard in self.classifier], dim=3) #B-W-64-3
+        predictions=torch.stack([classifier_shard(normalized_logits) for classifier_shard in self.classifier], dim=3) #B-w-64-3
         if target is None:
             loss=None
         else:
