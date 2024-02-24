@@ -190,13 +190,13 @@ def string_to_move_log(move_log_string):
     return [string_to_coordinates(move) for move in move_log_split]
 
 def int_to_coordinates(coords_as_int, game_board_size=8):
-    return (coords_as_int//game_board_size, coords_as_int%game_board_size)
+    return (coords_as_int%game_board_size, coords_as_int//game_board_size)
 
-def coorinates_to_int(coords_as_tuple,game_board_size=8):
-    return game_board_size*coords_as_tuple[0]+coords_as_tuple[1]
+def coordinates_to_int(coords_as_tuple,game_board_size=8):
+    return coords_as_tuple[0]+game_board_size*coords_as_tuple[1]
 
 def tokens_list():
-    tokens=[f"{letter}{number}" for letter in "ABCDEFGH" for number in range(1,9)]
+    tokens=[f"{letter}{number}" for number in range(1,9) for letter in "ABCDEFGH" ]
     tokens.append("XX") #end-of-game token
     tokens.append("PP") #pad token
     # tokens.append("SS") #start-of-game token
@@ -216,7 +216,12 @@ def test_conversion():
 # for _ in range(100):
 #     test_conversion()
 
-def history_to_legal_moves(move_log_tensor):
+def history_to_legal_moves(move_log_tensor, trim_to_length_64=True):
+    '''
+    takes in a tensor of ints, the move log, and for each game computes the legal next moves at each stage, returned as a 1-hot tensor of ints
+    input: shape (B, W) where B is the batch size, W is the window size
+    output: shape (B, W, V) where V is the vocabulary size (64+N where N is the number of additional tokens)
+    '''
     valid_moves_by_game=[]
     vocab_size=len(tokens_list())
     for game_log in move_log_tensor:
@@ -230,14 +235,17 @@ def history_to_legal_moves(move_log_tensor):
                 coords_as_tuple=int_to_coordinates(move, game_board_size=game.board_size)
                 game.make_move(coords_as_tuple)
                 valid_moves_as_tuple_list=game.list_legal_moves()
-                valid_moves_as_int_list=[coorinates_to_int(x, game.board_size) for x in valid_moves_as_tuple_list]
+                valid_moves_as_int_list=[coordinates_to_int(x, game.board_size) for x in valid_moves_as_tuple_list]
                 if not valid_moves_as_int_list:
                     #game has ended early, put in a pad token
                     valid_moves_as_int_list=[65]
             valid_moves_one_hot=[int(x in valid_moves_as_int_list) for x in range(vocab_size)]
             valid_moves_by_turn.append(valid_moves_one_hot)
         valid_moves_by_game.append(valid_moves_by_turn)
-    return torch.tensor(valid_moves_by_game)
+    to_return= torch.tensor(valid_moves_by_game)
+    if trim_to_length_64:
+        to_return=to_return[:, :, :64]
+    return to_return
 
 def history_to_board_states(game_log):
     board_states_by_turn=[]
@@ -256,3 +264,5 @@ def history_to_board_states(game_log):
 #     print(random_move_log)
 #     print(move_log_to_string(random_move_log))
 #     plot_back_move_log(random_move_log)
+
+print(coordinates_to_string(int_to_coordinates(5)))
