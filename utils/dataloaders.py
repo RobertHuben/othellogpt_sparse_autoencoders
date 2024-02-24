@@ -17,8 +17,11 @@ class OthelloDataset(Dataset):
         self.reverse_vocab={text:num for num, text in enumerate(self.vocab)}
         self.window_length=window_length
         self.device=device
-        with open(file_location,'r') as f:
-            self.games=f.read().split("\n")
+        if file_location:
+            with open(file_location,'r') as f:
+                self.games=f.read().split("\n")
+        else:
+            self.games=None
 
     def __len__(self):
         return len(self.games)
@@ -26,7 +29,7 @@ class OthelloDataset(Dataset):
     def __getitem__(self, index):
         game=self.games[index]
         extended_window_length=self.window_length+1
-        extended_moves=[self.reverse_vocab[move] for move in game.split(" ") if move]
+        extended_moves=self.string_to_int_list(game)
         if len(extended_moves)>extended_window_length:
             extended_moves=extended_moves[:extended_window_length]
         elif len(extended_moves)<extended_window_length:
@@ -35,6 +38,10 @@ class OthelloDataset(Dataset):
         inputs =extended_moves[:self.window_length]
         labels =extended_moves[1:]
         return inputs, labels
+    
+    def string_to_int_list(self, input_string):
+        extended_moves=[self.reverse_vocab[move] for move in input_string.split(" ") if move]
+        return extended_moves
 
 class LabelledOthelloDataset(Dataset):
     '''
