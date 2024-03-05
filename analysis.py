@@ -532,6 +532,9 @@ def combine(legal_moves, board):
     return (board+10*legal_moves).reshape((8,8))
 
 def manual_test():
+    '''
+    old junk code
+    '''
     with open("saes/sae_layer_6_trimmed_alpha_77_e-3.pkl", 'rb') as f:
         sae=torch.load(f, map_location=device)
     
@@ -624,27 +627,16 @@ def graph_MCS_and_AUROC_correlation(autoencoder_location="saes/sae.pkl", rectify
 if __name__=="__main__":
 
     autoencoder_location="saes/sae_layer_6_trimmed.pkl"
-    dir1="analysis_results"
-    dir2="analysis_results_seed_2"
-    compare_probe_and_feature_aurocs()
+    dir="analysis_results"
+    # compare_probe_and_feature_aurocs()
     # evaluate_all_probe_classification()
     # evaluate_all_legal_moves_classification()
 
-    # for offset in [-1, 0, 1, 2]:
-    # save_activations_boards_and_legal_moves(sae_location=autoencoder_location, save_directory=dir2, offset=1)
-    # evaluate_all_content_classification(directory=dir2)
 
     # compare_top_features_across_seeds()
 
     # show_top_activating(468, marked_position=34)
 
-    # for n in range(1024):
-    #     show_top_activating(n)
-
-    # for a in range(1024):
-    #     for b in range (64):
-    #         create_hist(a,b)
-    # get_autoencoder_directions("saes/sae_layer_6_trimmed.pkl")
     # analyze_cosine_similarities(autoencoder_location=autoencoder_location, rectify=True, include_control=True)
     # analyze_cosine_similarities_2(autoencoder_location=autoencoder_location)
     # find_top_aurocs_legal(k=20)
@@ -661,10 +653,8 @@ if __name__=="__main__":
     # show_top_activating(612, marked_position=56)
     # show_top_activating(142, marked_position=43)
 
-    # manual_test()
 
-    # find_top_aurocs_contents(k=20, directory=dir1)
-    # find_top_aurocs_contents(k=10, directory=dir2)
+    # find_top_aurocs_contents(k=20, directory=dir)
     # create_density_plot_contents(feature_number=857, board_position=34, separate_at_0=True)
     # create_density_plot_contents(feature_number=353, board_position=18, separate_at_0=True)
     # create_density_plot_contents(feature_number=722, board_position=26, separate_at_0=True)
@@ -673,8 +663,6 @@ if __name__=="__main__":
     # create_density_plot_contents(feature_number=525, board_position=7, separate_at_0=True)
     # create_density_plot_contents(feature_number=831, board_position=20, separate_at_0=True)
     # create_density_plot_contents(feature_number=38, board_position=45, separate_at_0=True)
-
-    # save_probe_data(offset=0)
 
     # create_hist_for_probe(board_position=26, primary_class=0)
     # create_triple_hist_for_probe(board_position=26)
