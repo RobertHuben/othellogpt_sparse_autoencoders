@@ -12,7 +12,7 @@ Do they learn an a-priori interesting and interpretable set of features (i.e. th
 
 
 Questions:
-Othello-GPT architecture? (internal dim=512, layers=8, MLP+attention?,  
+Othello-GPT architecture? (internal dim=512, layers=8, MLP+attention?)  
 Your linear probes were found with labelled data?
 Other interesting directions?
 Wanna guess if it works?
@@ -20,7 +20,18 @@ Wanna guess if it works?
 
 Othello experiment steps:
 
-Othello Engine
-Train OthelloGPT
-Run OthelloGPT
++ Othello Engine
++ Train OthelloGPT
++ Run OthelloGPT
 Find linear features in OthelloGPT (replication)
+
+
+To Do:
+1. Retrain autoencoder on middle section (trim from positions 4 to -8)
+
+
+
+Later?
+- Maybe update autoencoder architecture to normalize inputs?
+- Launch new training run
+
