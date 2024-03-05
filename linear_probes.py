@@ -56,10 +56,10 @@ class LinearProbe(torch.nn.Module):
 
         return float(total_correct_predictions/total_predictions)
     
-    def trim_to_window(self, x):
-        return x[:, self.window_start_trim:(self.window_length-self.window_end_trim), :]
+    def trim_to_window(self, x, offset=0):
+        return x[:, (self.window_start_trim+offset):(self.window_length-self.window_end_trim+offset), :]
     
-    def save_state_on_dataset(self, eval_dataset_type="probe_test", activations_save_location="analysis_results/probe_activations.pkl", boards_save_location="analysis_results/probe_all_boards.pkl"):
+    def save_state_on_dataset(self, offset=0, eval_dataset_type="probe_test", activations_save_location="analysis_results/probe_activations.pkl", boards_save_location="analysis_results/probe_all_boards.pkl"):
         batch_size=8
         window_length=self.window_length
         test_probe_dataloader=iter(get_dataloader(mode=eval_dataset_type, window_length=window_length, batch_size=batch_size))
@@ -68,7 +68,7 @@ class LinearProbe(torch.nn.Module):
         for input_batch,label_batch in test_probe_dataloader:
             pred, loss=self(input_batch, None)
             activations.append(pred)
-            boards.append(self.trim_to_window(label_batch))
+            boards.append(self.trim_to_window(label_batch, offset=offset))
         activations=torch.cat(activations).flatten(0,1)
         boards=torch.cat(boards).flatten(0,1)
         with open(activations_save_location, 'wb') as f:
