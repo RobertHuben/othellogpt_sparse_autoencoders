@@ -13,4 +13,12 @@ Contents:
 10. Some other auxilary methods in utils/
 
 How to use this code:
-[tk]
+
+1. Download datasets and trained models from https://drive.google.com/drive/folders/1xMkEctaqAUjoPXGY-9dBu-pE3SJjKx2K
+2. If you did not download the cached AUROCs, or want to make new ones, run analysis.py's ```evaluate_all_probe_classification()```, ```evaluate_all_legal_moves_classification()```, and ```evaluate_all_content_classification()```.
+3. To print the best AUROCs, run analysis.py's ```find_top_aurocs_legal()```or ```find_top_aurocs_contents```.
+4. To create density plots of the features as classifiers for positions, run analysis.py's ```create_density_plot_contents(feature_number=N, board_position=M)``` or ```    create_density_plot_legal(feature_number=N, board_position=M)```. Feature numbers run 0-1023, board positions are numbered 0-63. These numbers correspond to the outputs of ```find_top_aurocs_legal``` or ```find_top_aurocs_contents```.
+5. 
+
+
+
