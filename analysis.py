@@ -237,7 +237,7 @@ def create_roc(feature_number,board_position, piece_type):
     labels=all_boards.transpose(0,1)[board_position]==piece_type
     plot_roc_curve(labels, scores)
 
-def create_density_plot_contents(feature_number, board_position, separate_at_0=False):
+def create_density_plot_contents(feature_number, board_position, separate_at_0=True):
     '''
     density plot for features as board classifiers
     '''
@@ -278,30 +278,7 @@ def create_density_plot_contents(feature_number, board_position, separate_at_0=F
     save_file_name=f"analysis_results/figures/hist_contents_feat_{feature_number}_pos_{board_position}.png"
     fig.savefig(save_file_name)
 
-# def create_density_plot_legal(feature_number, board_position, separate_at_0=False):
-#     '''
-#     histogram for features as playability classifiers
-#     '''
-#     with open("analysis_results/all_activations.pkl", 'rb') as f:
-#         all_activations=torch.load(f)
-#     with open("analysis_results/all_legal_moves.pkl", 'rb') as f:
-#         all_legal_moves=torch.load(f)
-#     n_bins=10
-#     scores=all_activations.transpose(0,1)[feature_number]
-#     all_legal_moves=all_legal_moves.transpose(0,1)[board_position]
-#     legal=scores[torch.where(all_legal_moves==1)].detach().numpy()
-#     illegal=scores[torch.where(all_legal_moves==0)].detach().numpy()
-#     fig, ax = plt.subplots()
-#     ax.hist((illegal, legal), n_bins, density=True, histtype='bar', stacked=True, label=["illegal","legal"])
-#     ax.set_xlabel("Feature Activation")
-#     ax.set_ylabel("Frequency")
-#     ax.set_title(f'Feature {feature_number} activations against whether Position {board_position} is a legal move')
-#     plt.legend()
-#     save_file_name=f"analysis_results/figures/hist_playable_feat_{feature_number}_pos_{board_position}.png"
-#     fig.savefig(save_file_name)
-
-
-def create_density_plot_legal(feature_number, board_position, separate_at_0=False):
+def create_density_plot_legal(feature_number, board_position, separate_at_0=True):
     '''
     histogram for features as playability classifiers
     '''
@@ -374,7 +351,7 @@ def create_hist_for_probe(board_position, primary_class=0, separate_at_0=False):
     fig.savefig(save_file_name)
     plt.close()
 
-def create_triple_hist_for_probe(board_position, primary_class=0, separate_at_0=False):
+def create_triple_hist_for_probe(board_position, primary_class=0):
     with open("analysis_results/probe_activations.pkl", 'rb') as f:
         all_activations=torch.load(f)
     with open("analysis_results/probe_all_boards.pkl", 'rb') as f:
@@ -640,11 +617,11 @@ if __name__=="__main__":
     # analyze_cosine_similarities(autoencoder_location=autoencoder_location, rectify=True, include_control=True)
     # analyze_cosine_similarities_2(autoencoder_location=autoencoder_location)
     # find_top_aurocs_legal(k=20)
-    # create_density_plot_legal(722,26, separate_at_0=True)
-    # create_density_plot_legal(395,43, separate_at_0=True)
-    # create_density_plot_legal(1009,19, separate_at_0=True)
-    # create_density_plot_legal(831,20, separate_at_0=True)
-    # create_density_plot_legal(38,45, separate_at_0=True)
+    create_density_plot_legal(feature_number=722, board_position=26)
+    # create_density_plot_legal(feature_number=395, board_position=43)
+    # create_density_plot_legal(feature_number=1009, board_position=19)
+    # create_density_plot_legal(feature_number=831, board_position=20)
+    # create_density_plot_legal(feature_number=38, board_position=45)
     # show_top_activating(353, marked_position=18)
     # show_top_activating(525, marked_position=7)
     # show_top_activating(727, marked_position=37)
@@ -655,14 +632,14 @@ if __name__=="__main__":
 
 
     # find_top_aurocs_contents(k=20, directory=dir)
-    # create_density_plot_contents(feature_number=857, board_position=34, separate_at_0=True)
-    # create_density_plot_contents(feature_number=353, board_position=18, separate_at_0=True)
-    # create_density_plot_contents(feature_number=722, board_position=26, separate_at_0=True)
-    # create_density_plot_contents(feature_number=688, board_position=15, separate_at_0=True)
-    # create_density_plot_contents(feature_number=395, board_position=43, separate_at_0=True)
-    # create_density_plot_contents(feature_number=525, board_position=7, separate_at_0=True)
-    # create_density_plot_contents(feature_number=831, board_position=20, separate_at_0=True)
-    # create_density_plot_contents(feature_number=38, board_position=45, separate_at_0=True)
+    # create_density_plot_contents(feature_number=857, board_position=34)
+    # create_density_plot_contents(feature_number=353, board_position=18)
+    # create_density_plot_contents(feature_number=722, board_position=26)
+    # create_density_plot_contents(feature_number=688, board_position=15)
+    # create_density_plot_contents(feature_number=395, board_position=43)
+    # create_density_plot_contents(feature_number=525, board_position=7)
+    # create_density_plot_contents(feature_number=831, board_position=20)
+    # create_density_plot_contents(feature_number=38, board_position=45)
 
     # create_hist_for_probe(board_position=26, primary_class=0)
     # create_triple_hist_for_probe(board_position=26)
