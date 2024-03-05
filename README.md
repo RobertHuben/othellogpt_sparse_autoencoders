@@ -12,3 +12,5 @@ Contents:
 9. **utils/generate_training_corpus.py** generates a corpus of Othello games, for training or assessment (see below for details)
 10. Some other auxilary methods in utils/
 
+How to use this code:
+[tk]
