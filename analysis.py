@@ -617,7 +617,7 @@ if __name__=="__main__":
     # analyze_cosine_similarities(autoencoder_location=autoencoder_location, rectify=True, include_control=True)
     # analyze_cosine_similarities_2(autoencoder_location=autoencoder_location)
     # find_top_aurocs_legal(k=20)
-    create_density_plot_legal(feature_number=722, board_position=26)
+    # create_density_plot_legal(feature_number=722, board_position=26)
     # create_density_plot_legal(feature_number=395, board_position=43)
     # create_density_plot_legal(feature_number=1009, board_position=19)
     # create_density_plot_legal(feature_number=831, board_position=20)
