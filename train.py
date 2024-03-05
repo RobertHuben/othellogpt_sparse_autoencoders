@@ -4,12 +4,13 @@ from tqdm import tqdm
 
 device='cuda' if torch.cuda.is_available() else 'cpu'
 
-def train_model(model, train_dataset_type, eval_dataset_type, batch_size=64, num_epochs=2, report_every_n_steps=500):
+def train_model(model, train_dataset_type, eval_dataset_type, batch_size=64, num_epochs=2, report_every_n_steps=500, fixed_seed=1337):
     '''
     model be a nn.Module object, and have a print_evaluation() method
     train_dataset_type and eval_dataset_type must be in the list of valid types defined in the recognized_dataset() method in utils/dataloaders 
     '''
-    torch.manual_seed(1337)
+    if fixed_seed:
+        torch.manual_seed(fixed_seed)
     model.to(device)
     model.train()
     optimizer=torch.optim.AdamW(model.parameters(), lr=1e-3)
