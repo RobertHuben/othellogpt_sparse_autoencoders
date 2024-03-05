@@ -61,8 +61,8 @@ class SparseAutoencoder(nn.Module):
             with open(self.write_updates_to, 'a') as f:
                 f.write(print_message + "\n")
 
-    def trim_to_window(self, x):
-        return x[:, self.window_start_trim:(self.window_length-self.window_end_trim), :]
+    def trim_to_window(self, x, offset=0):
+        return x[:, (self.window_start_trim+offset):(self.window_length-self.window_end_trim+offset), :]
     
     def catenate_outputs_on_test_set(self, eval_dataset_type):
         test_dataloader=iter(get_dataloader(eval_dataset_type, window_length=self.window_length, batch_size=8))
