@@ -9,17 +9,24 @@ device='cuda' if torch.cuda.is_available() else 'cpu'
 
 class SparseAutoencoder(nn.Module):
 
-    def __init__(self, othello_gpt_model, layer_num, feature_ratio, sparsity_coeff=.1, initialization_weights=None, normalize_inputs=False, window_start_trim=0, window_end_trim=0):
+    def __init__(self, othello_gpt_model, layer_num, feature_ratio, sparsity_coeff=.1, initialization_weights=None, normalize_inputs=False, window_start_trim=0, window_end_trim=0, untied_weights=False, use_decoder_bias=False):
         super().__init__()
         self.othello_gpt_model=othello_gpt_model
         self.window_length=self.othello_gpt_model.window_length
+        self.untied_weights=untied_weights
         self.layer_num=layer_num
         self.sparsity_coeff=sparsity_coeff
         self.hidden_layer_size=int(self.othello_gpt_model.d_model*feature_ratio)
         self.normalize_inputs=normalize_inputs
         if initialization_weights==None:
             initialization_weights=torch.normal(0, 1, (self.othello_gpt_model.d_model, self.hidden_layer_size))
-        self.encoder_decoder_matrix=nn.Parameter(initialization_weights)
+        if self.untied_weights:
+            self.encoder_matrix=nn.Parameter(initialization_weights)    
+            self.decoder_matrix=nn.Parameter(torch.normal(0, 1, (self.othello_gpt_model.d_model, self.hidden_layer_size))) 
+        else:
+            self.encoder_decoder_matrix=nn.Parameter(initialization_weights)
+        if use_decoder_bias:
+            self.decoder_bias=nn.Parameter(torch.normal(0, 1, (self.othello_gpt_model.d_model,))) 
         self.encoder_bias=nn.Parameter(torch.normal(0,1, (self.hidden_layer_size,)))
         self.activation=nn.ReLU()
         self.layernorm=nn.LayerNorm((self.othello_gpt_model.d_model))
@@ -40,9 +47,16 @@ class SparseAutoencoder(nn.Module):
         trimmed_logits=self.trim_to_window(logits)
         if self.normalize_inputs:
             trimmed_logits=self.layernorm(trimmed_logits) #layernorm regularizes the input to self
-        normalized_encoder_decoder_matrix=F.normalize(self.encoder_decoder_matrix, p=2, dim=1) #need to L2 regularize the matrix
-        hidden_layer=self.activation(trimmed_logits@normalized_encoder_decoder_matrix + self.encoder_bias)
-        reconstruction=hidden_layer@normalized_encoder_decoder_matrix.transpose(0,1)
+        if hasattr(self, "untied_weights") and self.untied_weights:
+            normalized_encoder_matrix=F.normalize(self.encoder_matrix, p=2, dim=1) #need to L2 regularize the matrix
+            normalized_decoder_matrix=F.normalize(self.decoder_matrix, p=2, dim=1) #need to L2 regularize the matrix
+        else:
+            normalized_encoder_matrix=F.normalize(self.encoder_decoder_matrix, p=2, dim=1) #need to L2 regularize the matrix
+            normalized_decoder_matrix=normalized_encoder_matrix
+        hidden_layer=self.activation(trimmed_logits@normalized_encoder_matrix + self.encoder_bias)
+        reconstruction=hidden_layer@normalized_decoder_matrix.transpose(0,1)
+        if hasattr(self, "decoder_bias"):
+            reconstruction+=self.decoder_bias
         sparsity_loss=torch.norm(hidden_layer, p=1, dim=-1).sum()/hidden_layer.numel()
         reconstruction_loss=torch.norm(trimmed_logits-reconstruction, p=2, dim=-1).sum()/trimmed_logits.numel()
         total_loss=reconstruction_loss+self.sparsity_coeff*sparsity_loss
